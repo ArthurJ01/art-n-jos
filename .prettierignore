@@ -1,0 +1,4 @@
+dist
+coverage
+apps/api/drizzle/meta
+package-lock.json
