@@ -6,6 +6,7 @@
 export const paths = {
   home: '/',
   login: '/logga-in',
+  mealPlanner: '/matplanering',
   recipes: '/recept',
   newRecipe: '/recept/ny',
   recipe: (id: number | string) => `/recept/${id}`,

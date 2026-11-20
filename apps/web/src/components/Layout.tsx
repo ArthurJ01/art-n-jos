@@ -1,4 +1,4 @@
-import { Link, NavLink, Outlet, useNavigate } from 'react-router';
+import { Link, NavLink, Outlet, useLocation, useMatches, useNavigate } from 'react-router';
 import { useHealth, useLogout, useMe } from '../lib/api';
 import { paths } from '../lib/paths';
 
@@ -7,10 +7,16 @@ export function Layout() {
   const { data: health } = useHealth();
   const logout = useLogout();
   const navigate = useNavigate();
+  const location = useLocation();
+  // After logging in, come back to the page you were on.
+  const loginState =
+    location.pathname === paths.login ? undefined : { from: location.pathname + location.search };
   const showEnvBadge = health && health.env !== 'prod';
+  // A route can ask for a wider page with `handle: { wide: true }` in router.tsx.
+  const wide = useMatches().some((m) => (m.handle as { wide?: boolean } | undefined)?.wide);
 
   return (
-    <div className="shell">
+    <div className={wide ? 'shell shell-wide' : 'shell'}>
       <header className="header">
         <div className="header-left">
           <Link to={paths.home} className="brand">
@@ -26,6 +32,9 @@ export function Layout() {
             <NavLink to={paths.recipes} className="nav-link">
               Recept
             </NavLink>
+            <NavLink to={paths.mealPlanner} className="nav-link">
+              Matplanering
+            </NavLink>
           </nav>
         </div>
         <div className="nav">
@@ -38,7 +47,7 @@ export function Layout() {
               Logga ut
             </button>
           ) : (
-            <NavLink to={paths.login} className="button button-ghost">
+            <NavLink to={paths.login} state={loginState} className="button button-ghost">
               Logga in
             </NavLink>
           )}

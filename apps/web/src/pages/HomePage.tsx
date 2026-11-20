@@ -9,6 +9,12 @@ const areas = [
     title: 'Recept',
     description: 'Bläddra bland, sök i och lägg till våra recept.',
   },
+  {
+    to: paths.mealPlanner,
+    icon: '📅',
+    title: 'Matplanering',
+    description: 'Planera veckans frukost, lunch och middag.',
+  },
 ];
 
 export function HomePage() {
