@@ -3,11 +3,10 @@
 A small full-stack web app for collecting recipes. It also works as a practice project for professional software engineering setups: a monorepo, a typed API, a real database, tests, Docker, CI/CD, and separate dev and prod environments.
 
 ```
-            ┌──────────────────────── one Docker container per environment ──┐
- Browser ──▶│  Express (Node)                                               │──▶ PostgreSQL (Neon)
-            │   ├─ /api/*   JSON API (recipes, auth, health)                │
-            │   └─ /*       the built React app (static files)              │
-            └───────────────────────────────────────────────────────────────┘
+             ┌──────────────────── Vercel ────────────────────┐
+ Browser ───▶│ /*      React app (global CDN)                 │
+             │ /api/*  Express API, serverless (Frankfurt)    │───▶ Postgres (Neon, Frankfurt)
+             └────────────────────────────────────────────────┘
 ```
 
 | Layer       | Tech                                                           |
@@ -18,9 +17,9 @@ A small full-stack web app for collecting recipes. It also works as a practice p
 | Shared code | `packages/shared`: Zod schemas and types used by both sides    |
 | Tests       | Vitest, Supertest (API against a real DB), Testing Library     |
 | Quality     | ESLint, Prettier, TypeScript strict mode                       |
-| Packaging   | Multi-stage Dockerfile                                         |
-| CI/CD       | GitHub Actions → GitHub Container Registry → Render            |
-| Hosting     | Render (app), Neon (Postgres). Both are free tier, so $0/month |
+| Packaging   | Multi-stage Dockerfile (built in CI; ready for Cloud Run etc.) |
+| CI/CD       | GitHub Actions → Vercel CLI (dev → approval → prod)            |
+| Hosting     | Vercel (site + API), Neon (Postgres). Free tiers, so $0/month  |
 
 ## Project structure
 
@@ -30,7 +29,8 @@ A small full-stack web app for collecting recipes. It also works as a practice p
 │   ├── api/                 Express API
 │   │   ├── src/
 │   │   │   ├── app.ts       builds the Express app (routes, middleware)
-│   │   │   ├── index.ts     starts the server
+│   │   │   ├── index.ts     starts the server (local / Docker)
+│   │   │   ├── vercel.ts    entry used on Vercel
 │   │   │   ├── env.ts       validated environment variables
 │   │   │   ├── db/          schema, client, migrate & seed scripts
 │   │   │   ├── routes/      /api/recipes, /api/auth
@@ -44,6 +44,8 @@ A small full-stack web app for collecting recipes. It also works as a practice p
 │           └── lib/         API client + hooks, helpers
 ├── packages/shared/         types & validation shared by api and web
 ├── .github/workflows/       CI and deploy pipelines
+├── api/index.js           Vercel serverless entry (wraps the Express app)
+├── vercel.json            Vercel build, rewrites and region
 ├── Dockerfile
 ├── docker-compose.yml       local Postgres
 └── docs/SETUP.md            step-by-step hosting setup
@@ -84,9 +86,8 @@ Open http://localhost:5173 and log in with the `APP_PASSWORD` from your `.env`.
 3. Push and open a pull request. **CI** runs lint, typecheck, tests, build and a Docker build.
 4. Merge into `main`. The **Deploy** pipeline then:
    1. runs CI again,
-   2. builds a Docker image and pushes it to `ghcr.io`,
-   3. runs DB migrations on **dev** and deploys that image to dev,
-   4. waits for your **approval**, then migrates and deploys the _same_ image to **prod**.
+   2. runs DB migrations on **dev** and deploys to dev (a Vercel preview),
+   3. waits for your **approval**, then migrates the prod DB and deploys to **prod**.
 5. Check the dev site (it shows a `DEV` badge). If it looks right, approve the prod deploy in the Actions tab.
 
 ### Changing the database
@@ -100,7 +101,7 @@ Migrations run **before** the new code goes live, so for a short time the old co
 
 ## Deploying
 
-See **[docs/SETUP.md](docs/SETUP.md)** for a one-time setup of GitHub, Neon and Render.
+See **[docs/SETUP.md](docs/SETUP.md)** for a one-time setup of Neon, Vercel, GitHub and the domain.
 
 ## Ideas for what to build next
 

@@ -1,114 +1,112 @@
-# Hosting setup (one time, about 30–45 minutes)
+# Hosting setup (one time, about 30 minutes)
 
 When you're done you'll have:
 
-- **GitHub**: your code, CI, the deploy pipeline and the Docker image registry
+- **GitHub**: your code, CI, and the deploy pipeline, with an approval step before prod
 - **Neon**: managed Postgres with a `production` branch and a `dev` branch
-- **Render**: two web services, `art-n-jos-dev` and `art-n-jos-prod`, each running your Docker image
+- **Vercel**: hosts the React site on its global network and runs the API as serverless functions in Frankfurt
+- **jos-n-art.com** (optional): your own domain
 
-Everything below uses free tiers, so the total is **$0/month**. See [Costs](#costs) at the bottom.
+Everything except the domain is on free tiers. See [Costs](#costs) at the bottom.
 
-> Do the steps in order. A few of them depend on something created earlier (for example, Render needs the Docker image to exist first).
+> Do the steps in order. Wherever you need to paste a secret, keep it out of the code, chat messages and screenshots.
 
 ---
 
-## 1. Put the code on GitHub
+## 1. GitHub ✅
 
-1. Create a **new, empty, public** repository on GitHub named `art-n-jos`. Don't add a README, .gitignore or license, because the project already has them.
-   _Why public?_ On GitHub's free plan, public repos get unlimited Actions minutes and the "approve before prod" gate. Your secrets are never in the code. They're stored in GitHub, Neon and Render.
-2. Make the first commit and push. The folder is already a git repo with every file staged:
-
-   ```bash
-   cd ~/Projects/art-web
-   npm install                          # creates node_modules (git-ignored)
-   git commit -m "Initial commit: recipes app with CI/CD"
-   git remote add origin git@github.com:<your-username>/art-n-jos.git
-   git push -u origin main
-   ```
-
-   (No SSH key set up with GitHub? Use `https://github.com/<your-username>/art-n-jos.git` instead.)
-
-3. Open the **Actions** tab. The **Deploy** workflow runs. It will:
-   - ✅ run CI
-   - ✅ build the Docker image and push it to `ghcr.io/<your-username>/art-n-jos`
-   - ⏭️ skip the deploy jobs (we turn those on in step 5)
-
-4. Make the image public, so Render can pull it without credentials. On your GitHub profile, go to **Packages → art-n-jos → Package settings → Change visibility → Public**.
+Already done: the code is at https://github.com/ArthurJ01/art-n-jos and CI runs on every push.
 
 ## 2. Create the databases (Neon)
 
-1. Sign up at https://neon.com (you can log in with GitHub).
+1. Sign up at https://neon.com (logging in with GitHub works).
 2. **Create project**:
    - Name: `art-n-jos`
    - Postgres version: 16 or newer
-   - Region: **AWS Europe Central (Frankfurt)**, close to Sweden and to Render's Frankfurt region
+   - Region: **AWS Europe Central (Frankfurt)**, the same city where the API will run
 3. The project starts with a branch called `production` (or `main`). That's your **prod database**.
-4. Go to **Branches → Create branch**, name it `dev`, parent `production`. That's your **dev database**.
-5. For each branch, click **Connect** and copy the connection string. It looks like
-   `postgresql://user:password@ep-xxx.eu-central-1.aws.neon.tech/neondb?sslmode=require`.
-   Turn the **"Connection pooling"** toggle **off** so you get the direct connection string.
-   Keep both strings somewhere safe for now. You'll paste them into Render and GitHub.
+4. **Branches → Create branch**, name `dev`, parent `production`. That's your **dev database**.
+5. For **each** branch, open **Connect** and copy **two** connection strings:
+   - **Pooled** (toggle "Connection pooling" **on**; the host contains `-pooler`). The live app uses this one, on Vercel.
+   - **Direct** (toggle **off**). The deploy pipeline uses this one to run migrations, on GitHub.
 
-## 3. Create the web services (Render)
+   So you end up with four strings: dev-pooled, dev-direct, prod-pooled, prod-direct.
 
-Do this twice: once for **dev**, once for **prod**.
+## 3. Create the Vercel project
 
-1. Sign up at https://render.com (GitHub login works).
-2. **New → Web Service → Existing Image**
-   - Image URL: `ghcr.io/<your-username>/art-n-jos:latest`
-   - Name: `art-n-jos-dev` (and later `art-n-jos-prod`)
-   - Region: **Frankfurt**
-   - Instance type: **Free**
-3. **Environment variables**:
+1. Sign up at https://vercel.com with **Continue with GitHub** and pick the free **Hobby** plan.
+2. **Add New… → Project → Import** `ArthurJ01/art-n-jos`.
+   - Framework preset: **Other**
+   - Root directory: `./`
+   - Leave the build settings alone. They come from `vercel.json`.
+3. Click **Deploy**. The first deploy builds the site, but the API will fail until the env vars below are set. That's expected.
+   (Vercel's automatic deploy-on-push is switched off in `vercel.json`. From now on, GitHub Actions does the deploys.)
+4. **Settings → Environment Variables**. Add each variable below, choosing the environment it applies to:
 
-   | Key              | dev value                             | prod value                            |
-   | ---------------- | ------------------------------------- | ------------------------------------- |
-   | `APP_ENV`        | `dev`                                 | `prod`                                |
-   | `DATABASE_URL`   | Neon **dev** branch connection string | Neon **production** connection string |
-   | `APP_PASSWORD`   | a password for the dev site           | the password you'll actually use      |
-   | `SESSION_SECRET` | a random string (see below)           | a _different_ random string           |
+   | Key              | Production                       | Preview (= dev)             |
+   | ---------------- | -------------------------------- | --------------------------- |
+   | `DATABASE_URL`   | prod-**pooled** string           | dev-**pooled** string       |
+   | `APP_PASSWORD`   | the password you'll actually use | a password for the dev site |
+   | `SESSION_SECRET` | a random string (see below)      | a _different_ random string |
+   | `APP_ENV`        | `prod`                           | `dev`                       |
 
-   Generate a secret with:
+   Generate random strings with:
 
    ```bash
    node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
    ```
 
-4. Under **Advanced → Health Check Path**, enter `/api/health`.
-5. Click **Deploy**. The first deploy will start, but the site will show errors until the database has tables, which the pipeline takes care of in step 5.
-6. Open the service's **Settings → Deploy Hook** and copy the URL. Treat it like a password.
-7. Note the service URL, e.g. `https://art-n-jos-dev.onrender.com`.
+5. **Settings → Functions → Function Region**: choose **Frankfurt, Germany (fra1)**, next to the database. `vercel.json` asks for it too, but setting it here makes sure.
+6. **Settings → General**: note the **Project ID**. Your **Team ID** (it starts with `team_`) is in your account/team **Settings → General**.
+7. Create a token for GitHub Actions: https://vercel.com/account/tokens → **Create**, name `github-actions`, scope your Hobby team, no expiry (or 1 year). Copy it.
 
-## 4. Configure GitHub environments
+## 4. Configure GitHub
 
-In your repo: **Settings → Environments**.
+In the repo: **Settings → Secrets and variables → Actions**.
+
+**Repository secret**
+
+- `VERCEL_TOKEN`: the token from step 3.7
+
+**Repository variables**
+
+- `VERCEL_ORG_ID`: your Team ID (`team_…`)
+- `VERCEL_PROJECT_ID`: the Project ID (`prj_…`)
+
+Then **Settings → Environments**:
 
 ### `dev`
 
-- **New environment** → name: `dev`
-- **Environment secrets**:
-  - `DATABASE_URL`: Neon dev connection string
-  - `RENDER_DEPLOY_HOOK_URL`: deploy hook from `art-n-jos-dev`
-- **Environment variables**:
-  - `APP_URL`: `https://art-n-jos-dev.onrender.com` (no trailing slash)
+- Secret `DATABASE_URL`: dev-**direct** string
+- Variable `APP_URL`: `https://art-n-jos-dev.vercel.app` (or `https://dev.jos-n-art.com` once the domain is set up)
 
 ### `production`
 
-- **New environment** → name: `production`
 - ✅ **Required reviewers**: add yourself. This is the "approve before prod" button.
 - **Deployment branches**: _Selected branches_ → `main`
-- Secrets and variables are the same as for dev, but use the **prod** values (Neon production string, `art-n-jos-prod` deploy hook, prod URL).
+- Secret `DATABASE_URL`: prod-**direct** string
+- Variable `APP_URL`: the prod address Vercel shows on the project page, e.g. `https://art-n-jos.vercel.app` (or `https://jos-n-art.com` later)
 
 ## 5. Turn on deployments
 
 1. **Settings → Secrets and variables → Actions → Variables → New repository variable**
    - Name: `DEPLOY_ENABLED`, value: `true`
-2. **Actions → Deploy → Run workflow** (or push any commit to `main`).
-3. Watch it run: CI → build → deploy to dev. When it pauses at **Deploy to prod**, open the dev URL and check that it works, then click **Review deployments → Approve**.
+2. **Actions → Deploy → Run workflow**.
+3. Watch it run: CI → **Deploy to dev**. When it pauses at **Deploy to prod**, open the dev URL and check that it works. Dev sits behind Vercel login, so you'll be asked to log in. Then click **Review deployments → Approve**.
 
 🎉 You're live.
 
-## 6. Protect `main` (recommended)
+## 6. Custom domain: jos-n-art.com (optional)
+
+1. Buy `jos-n-art.com`, for example at Cloudflare Registrar (about $10.50/year, and renewals cost the same).
+2. In Vercel: **Project → Settings → Domains → Add**:
+   - `jos-n-art.com`: Production
+   - `www.jos-n-art.com`: redirect to `jos-n-art.com`
+   - `dev.jos-n-art.com`: don't assign it to a branch. The pipeline points it at each new dev deploy.
+3. Vercel shows the DNS records to create (an `A` record for the root and `CNAME` records for `www` and `dev`). Add them in Cloudflare's DNS tab and set them to **DNS only** (grey cloud). Vercel issues the HTTPS certificates automatically.
+4. Update the GitHub environment variables: `APP_URL` = `https://dev.jos-n-art.com` (dev) and `https://jos-n-art.com` (production).
+
+## 7. Protect `main` (recommended)
 
 **Settings → Rules → Rulesets → New branch ruleset**
 
@@ -117,33 +115,31 @@ In your repo: **Settings → Environments**.
 - ✅ Require status checks to pass: add `Lint, typecheck, test, build` and `Docker image builds`
 - ✅ Block force pushes
 
-From now on all changes go through a PR, which is how most teams work.
-
 ---
 
 ## Troubleshooting
 
-| Symptom                                        | Likely cause / fix                                                                                                           |
-| ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| First page load takes ~1 minute                | Normal on Render's free tier. The service sleeps after 15 min of no traffic.                                                 |
-| "Run database migrations" fails                | Wrong `DATABASE_URL` secret in that GitHub environment, or the image is private (step 1.4).                                  |
-| "Trigger Render deploy" fails with 400         | The Render service's image URL must be `ghcr.io/<you>/art-n-jos:...` in lowercase, same as the pipeline.                     |
-| "Wait until the new version is live" times out | Look at the service's **Logs** in Render. Often a missing or invalid environment variable; the app prints exactly which one. |
-| Can't log in on the deployed site              | Check `APP_PASSWORD` on that Render service. Cookies need HTTPS, and Render provides it automatically.                       |
+| Symptom                                | Likely cause / fix                                                                                                                                                          |
+| -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| "Run database migrations" fails        | Wrong `DATABASE_URL` secret in that GitHub environment (use the **direct** string).                                                                                         |
+| "Pull Vercel project settings" fails   | `VERCEL_TOKEN`, `VERCEL_ORG_ID` or `VERCEL_PROJECT_ID` is wrong or missing.                                                                                                 |
+| Site loads but recipes don't (API 500) | **Vercel → Project → Logs**. Usually a missing env var; the app prints exactly which one. Env vars only apply to _new_ deploys, so re-run the workflow after changing them. |
+| "Point the dev address…" fails         | The `APP_URL` name is taken by someone else on `vercel.app`. Pick another name, e.g. `art-n-jos-dev-arthur.vercel.app`.                                                     |
+| Can't log in on the deployed site      | Check `APP_PASSWORD` for that environment in Vercel.                                                                                                                        |
 
-**Rolling back:** in Render, open the service → **Events** → pick an earlier deploy → **Rollback**. Or re-run an older successful **Deploy** workflow run in GitHub Actions.
+**Rolling back:** Vercel → Project → **Deployments** → pick an earlier production deploy → **⋯ → Instant Rollback**.
 
 ---
 
 ## Costs
 
-| Service                  | Plan | Cost              | Limits that matter                                                                                         |
-| ------------------------ | ---- | ----------------- | ---------------------------------------------------------------------------------------------------------- |
-| GitHub (public repo)     | Free | $0                | Unlimited Actions minutes on public repos. Free container registry for public images.                      |
-| Neon                     | Free | $0                | ~1 GB storage and 100 compute-hours per month per project. A recipe site uses a tiny fraction.             |
-| Render (2 web services)  | Free | $0                | 750 instance-hours/month shared across services. Services sleep after 15 min idle and take ~1 min to wake. |
-| Custom domain (optional) | —    | ~100–150 SEK/year | e.g. via Cloudflare Registrar, Porkbun or Loopia                                                           |
+| Service                | Plan       | Cost         | Limits that matter                                                                                                                                                                                      |
+| ---------------------- | ---------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GitHub (public repo)   | Free       | $0           | Unlimited Actions minutes on public repos.                                                                                                                                                              |
+| Neon                   | Free       | $0           | About 1 GB storage and 100 compute-hours per month per project. Sleeps after ~5 min idle, and waking takes well under a second.                                                                         |
+| Vercel                 | Hobby      | $0           | Personal, non-commercial use only. About 4 h of _active_ CPU per month, which is hundreds of thousands of API requests. If you hit a limit the API pauses until the month resets; you're never charged. |
+| Domain `jos-n-art.com` | Cloudflare | ~$10.50/year | Same price every year.                                                                                                                                                                                  |
 
-**When you might want to pay:** if the cold start on prod annoys you, upgrade only `art-n-jos-prod` to Render's _Starter_ instance (about $7/month). Dev can keep sleeping.
+**If you outgrow Vercel's free tier:** the Dockerfile still builds on every PR, so the API can move to Google Cloud Run (free tier) while the site stays on Vercel. Or upgrade to Vercel Pro ($20/month).
 
-Free-tier limits change over time, so check the pricing pages for Neon (https://neon.com/pricing) and Render (https://render.com/pricing).
+Free-tier limits change over time, so check https://neon.com/pricing and https://vercel.com/pricing.
