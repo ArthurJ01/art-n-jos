@@ -74,7 +74,7 @@ describe('recipes', () => {
   it('validates input', async () => {
     const agent = await loggedInAgent();
     const res = await agent.post('/api/recipes').send({ title: '' }).expect(400);
-    expect(res.body.error).toBe('Invalid request');
+    expect(res.body.error).toBe('Ogiltig förfrågan');
   });
 
   it('searches by text and filters by tag', async () => {

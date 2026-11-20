@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router';
-import { useRecipes } from '../lib/api';
+import { Link, useSearchParams } from 'react-router';
+import { useMe, useRecipes } from '../lib/api';
+import { paths } from '../lib/paths';
 import { RecipeCard } from '../components/RecipeCard';
 
 export function RecipeListPage() {
@@ -9,6 +10,7 @@ export function RecipeListPage() {
   const q = params.get('q') ?? '';
   const tag = params.get('tag') ?? '';
   const [search, setSearch] = useState(q);
+  const { data: me } = useMe();
 
   // Debounce: only update the URL (and refetch) 250 ms after the user stops typing.
   useEffect(() => {
@@ -36,26 +38,32 @@ export function RecipeListPage() {
 
   return (
     <>
+      <h1>Recept</h1>
       <div className="toolbar">
         <input
           type="search"
           className="input"
-          placeholder="Search recipes…"
+          placeholder="Sök recept…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          aria-label="Search recipes"
+          aria-label="Sök recept"
         />
         {tag && (
           <button type="button" className="tag tag-active" onClick={clearTag}>
             {tag} ×
           </button>
         )}
+        {me?.authenticated && (
+          <Link to={paths.newRecipe} className="button button-primary toolbar-action">
+            + Nytt recept
+          </Link>
+        )}
       </div>
 
-      {isPending && <p className="muted">Loading…</p>}
-      {error && <p className="error">Could not load recipes: {error.message}</p>}
+      {isPending && <p className="muted">Laddar…</p>}
+      {error && <p className="error">Kunde inte hämta recepten: {error.message}</p>}
       {recipes && recipes.length === 0 && (
-        <p className="muted">No recipes yet{q || tag ? ' matching that' : ''}.</p>
+        <p className="muted">{q || tag ? 'Inga recept matchar sökningen.' : 'Inga recept än.'}</p>
       )}
       <div className="grid">
         {recipes?.map((r) => (

@@ -6,12 +6,17 @@ import helmet from 'helmet';
 import { pinoHttp } from 'pino-http';
 import type { Logger } from 'pino';
 import { sql } from 'drizzle-orm';
+import { z } from 'zod';
+import { sv } from 'zod/locales';
 import type { HealthResponse } from '@art-web/shared';
 import type { Env } from './env.js';
 import type { Db } from './db/client.js';
 import { authRouter } from './routes/auth.js';
 import { recipesRouter } from './routes/recipes.js';
 import { errorHandler, notFound } from './middleware/errors.js';
+
+// The site is in Swedish, so Zod's built-in validation messages should be too.
+z.config(sv());
 
 interface AppDeps {
   env: Env;

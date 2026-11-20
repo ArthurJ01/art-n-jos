@@ -66,7 +66,7 @@ export function recipesRouter(db: Db) {
   router.get('/:id', async (req, res) => {
     const { id } = idParam.parse(req.params);
     const [row] = await db.select().from(recipes).where(eq(recipes.id, id));
-    if (!row) throw new HttpError(404, 'Recipe not found');
+    if (!row) throw new HttpError(404, 'Receptet hittades inte');
     res.json(toDto(row));
   });
 
@@ -84,7 +84,7 @@ export function recipesRouter(db: Db) {
       .set({ ...toColumns(data), updatedAt: new Date() })
       .where(eq(recipes.id, id))
       .returning();
-    if (!row) throw new HttpError(404, 'Recipe not found');
+    if (!row) throw new HttpError(404, 'Receptet hittades inte');
     res.json(toDto(row));
   });
 
@@ -94,7 +94,7 @@ export function recipesRouter(db: Db) {
       .delete(recipes)
       .where(eq(recipes.id, id))
       .returning({ id: recipes.id });
-    if (deleted.length === 0) throw new HttpError(404, 'Recipe not found');
+    if (deleted.length === 0) throw new HttpError(404, 'Receptet hittades inte');
     res.status(204).end();
   });
 

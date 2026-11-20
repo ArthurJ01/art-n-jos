@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatMinutes, toLines, toTags } from './format';
+import { formatMinutes, formatServings, toLines, toTags } from './format';
 
 describe('formatMinutes', () => {
   it.each([
@@ -10,6 +10,13 @@ describe('formatMinutes', () => {
     [90, '1 h 30 min'],
   ])('formats %s as %s', (input, expected) => {
     expect(formatMinutes(input)).toBe(expected);
+  });
+});
+
+describe('formatServings', () => {
+  it('uses singular for one and plural otherwise', () => {
+    expect(formatServings(1)).toBe('1 portion');
+    expect(formatServings(4)).toBe('4 portioner');
   });
 });
 

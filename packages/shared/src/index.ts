@@ -18,7 +18,7 @@ const optionalMinutes = z
   .optional();
 
 export const recipeInputSchema = z.object({
-  title: z.string().trim().min(1, 'Title is required').max(200),
+  title: z.string().trim().min(1, 'Titel krävs').max(200),
   description: z.string().trim().max(2000).nullable().optional(),
   servings: z.number().int().min(1).max(100).nullable().optional(),
   prepMinutes: optionalMinutes,

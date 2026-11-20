@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router';
 import type { Recipe, RecipeInput } from '@art-web/shared';
 import { ApiRequestError, useRecipe, useSaveRecipe } from '../lib/api';
 import { toLines, toTags } from '../lib/format';
+import { paths } from '../lib/paths';
 
 /** Used for both "new recipe" and "edit recipe". */
 export function RecipeFormPage() {
@@ -10,7 +11,7 @@ export function RecipeFormPage() {
   const id = params.id ? Number(params.id) : undefined;
   const { data: existing, isPending } = useRecipe(id ?? NaN);
 
-  if (id && isPending) return <p className="muted">Loading…</p>;
+  if (id && isPending) return <p className="muted">Laddar…</p>;
   // `key` resets the form state when switching between recipes.
   return <RecipeForm key={id ?? 'new'} id={id} initial={existing} />;
 }
@@ -50,7 +51,7 @@ function RecipeForm({ id, initial }: { id?: number; initial?: Recipe }) {
       sourceUrl: form.sourceUrl || null,
       createdBy: form.createdBy || null,
     };
-    save.mutate(input, { onSuccess: (r) => navigate(`/recipes/${r.id}`) });
+    save.mutate(input, { onSuccess: (r) => navigate(paths.recipe(r.id)) });
   };
 
   const error = save.error;
@@ -63,14 +64,14 @@ function RecipeForm({ id, initial }: { id?: number; initial?: Recipe }) {
 
   return (
     <form className="form" onSubmit={onSubmit}>
-      <h1>{id ? 'Edit recipe' : 'New recipe'}</h1>
+      <h1>{id ? 'Redigera recept' : 'Nytt recept'}</h1>
 
       <label>
-        Title
+        Titel
         <input className="input" required value={form.title} onChange={set('title')} />
       </label>
       <label>
-        Description
+        Beskrivning
         <textarea
           className="input"
           rows={2}
@@ -81,7 +82,7 @@ function RecipeForm({ id, initial }: { id?: number; initial?: Recipe }) {
 
       <div className="row">
         <label>
-          Servings
+          Portioner
           <input
             className="input"
             type="number"
@@ -91,7 +92,7 @@ function RecipeForm({ id, initial }: { id?: number; initial?: Recipe }) {
           />
         </label>
         <label>
-          Prep (min)
+          Förberedelse (min)
           <input
             className="input"
             type="number"
@@ -101,7 +102,7 @@ function RecipeForm({ id, initial }: { id?: number; initial?: Recipe }) {
           />
         </label>
         <label>
-          Cook (min)
+          Tillagning (min)
           <input
             className="input"
             type="number"
@@ -113,7 +114,7 @@ function RecipeForm({ id, initial }: { id?: number; initial?: Recipe }) {
       </div>
 
       <label>
-        Ingredients <span className="hint">one per line</span>
+        Ingredienser <span className="hint">en per rad</span>
         <textarea
           className="input"
           rows={8}
@@ -122,26 +123,26 @@ function RecipeForm({ id, initial }: { id?: number; initial?: Recipe }) {
         />
       </label>
       <label>
-        Steps <span className="hint">one per line</span>
+        Gör så här <span className="hint">ett steg per rad</span>
         <textarea className="input" rows={8} value={form.steps} onChange={set('steps')} />
       </label>
       <label>
-        Tags <span className="hint">comma separated</span>
+        Taggar <span className="hint">separera med komma</span>
         <input
           className="input"
           value={form.tags}
           onChange={set('tags')}
-          placeholder="pasta, quick"
+          placeholder="pasta, snabbt"
         />
       </label>
 
       <div className="row">
         <label>
-          Source URL
+          Länk till källa
           <input className="input" type="url" value={form.sourceUrl} onChange={set('sourceUrl')} />
         </label>
         <label>
-          Added by
+          Tillagt av
           <input className="input" value={form.createdBy} onChange={set('createdBy')} />
         </label>
       </div>
@@ -150,10 +151,10 @@ function RecipeForm({ id, initial }: { id?: number; initial?: Recipe }) {
 
       <div className="actions">
         <button type="submit" className="button button-primary" disabled={save.isPending}>
-          {save.isPending ? 'Saving…' : 'Save'}
+          {save.isPending ? 'Sparar…' : 'Spara'}
         </button>
         <button type="button" className="button button-ghost" onClick={() => navigate(-1)}>
-          Cancel
+          Avbryt
         </button>
       </div>
     </form>
