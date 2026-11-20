@@ -13,5 +13,5 @@ export const requireAuth: RequestHandler = (req, res, next) => {
     next();
     return;
   }
-  res.status(401).json({ error: 'You need to log in to do that' });
+  res.status(401).json({ error: 'Du måste logga in för att göra det' });
 };

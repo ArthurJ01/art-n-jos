@@ -15,12 +15,16 @@ export function authRouter(opts: { password: string; secureCookies: boolean }) {
   const router = Router();
 
   // Slow down password guessing: max 10 attempts per 15 minutes per IP.
-  const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 10 });
+  const loginLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: 10,
+    message: { error: 'För många försök. Vänta en stund och försök igen.' },
+  });
 
   router.post('/login', loginLimiter, (req, res) => {
     const { password } = loginSchema.parse(req.body);
     if (!safeEqual(password, opts.password)) {
-      res.status(401).json({ error: 'Wrong password' });
+      res.status(401).json({ error: 'Fel lösenord' });
       return;
     }
     res.cookie(SESSION_COOKIE, 'ok', {
