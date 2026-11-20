@@ -1,5 +1,16 @@
 import { sql } from 'drizzle-orm';
-import { index, integer, pgTable, serial, text, timestamp } from 'drizzle-orm/pg-core';
+import {
+  boolean,
+  check,
+  date,
+  index,
+  integer,
+  pgTable,
+  serial,
+  text,
+  timestamp,
+} from 'drizzle-orm/pg-core';
+import type { MealPlanKind, MealType } from '@art-web/shared';
 
 /**
  * Database tables, defined in TypeScript.
@@ -35,3 +46,34 @@ export const recipes = pgTable(
 );
 
 export type RecipeRow = typeof recipes.$inferSelect;
+
+/**
+ * One thing planned for one meal on one day. A slot (say Tuesday dinner) can
+ * hold several entries, so there is no unique constraint on (date, meal).
+ */
+export const mealPlanEntries = pgTable(
+  'meal_plan_entries',
+  {
+    id: serial('id').primaryKey(),
+    // A plain calendar day. mode 'string' keeps it as "YYYY-MM-DD" instead of a
+    // JS Date, which would drag time zones into something that has none.
+    date: date('date', { mode: 'string' }).notNull(),
+    meal: text('meal').$type<MealType>().notNull(),
+    kind: text('kind').$type<MealPlanKind>().notNull(),
+    // Deleting a recipe also removes it from the plan.
+    recipeId: integer('recipe_id').references(() => recipes.id, { onDelete: 'cascade' }),
+    isLeftover: boolean('is_leftover').notNull().default(false),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('meal_plan_entries_date_idx').on(t.date),
+    // The API validates these too; the checks make sure the data stays sane
+    // even if something else writes to the table.
+    check('meal_plan_entries_meal_check', sql`${t.meal} in ('breakfast', 'lunch', 'dinner')`),
+    check('meal_plan_entries_kind_check', sql`${t.kind} in ('recipe', 'eat_out')`),
+    check(
+      'meal_plan_entries_recipe_check',
+      sql`(${t.kind} = 'recipe') = (${t.recipeId} is not null)`,
+    ),
+  ],
+);

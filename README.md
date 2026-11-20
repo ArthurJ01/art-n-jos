@@ -33,7 +33,7 @@ A small full-stack web app for collecting recipes. It also works as a practice p
 │   │   │   ├── vercel.ts    entry used on Vercel
 │   │   │   ├── env.ts       validated environment variables
 │   │   │   ├── db/          schema, client, migrate & seed scripts
-│   │   │   ├── routes/      /api/recipes, /api/auth
+│   │   │   ├── routes/      /api/recipes, /api/meal-plan, /api/auth
 │   │   │   └── middleware/  auth + error handling
 │   │   ├── drizzle/         generated SQL migrations (commit these!)
 │   │   └── test/            API integration tests

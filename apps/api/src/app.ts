@@ -13,6 +13,7 @@ import type { Env } from './env.js';
 import type { Db } from './db/client.js';
 import { authRouter } from './routes/auth.js';
 import { recipesRouter } from './routes/recipes.js';
+import { mealPlanRouter } from './routes/meal-plan.js';
 import { errorHandler, notFound } from './middleware/errors.js';
 
 // The site is in Swedish, so Zod's built-in validation messages should be too.
@@ -63,6 +64,7 @@ export function createApp({ env, db, logger }: AppDeps) {
 
   api.use('/auth', authRouter({ password: env.APP_PASSWORD, secureCookies: isProd }));
   api.use('/recipes', recipesRouter(db));
+  api.use('/meal-plan', mealPlanRouter(db));
   api.use(notFound);
 
   app.use('/api', api);

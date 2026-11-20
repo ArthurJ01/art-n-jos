@@ -8,6 +8,13 @@
       "when": 1795204216878,
       "tag": "0000_init",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1795212967010,
+      "tag": "0001_meal_plan",
+      "breakpoints": true
     }
   ]
 }

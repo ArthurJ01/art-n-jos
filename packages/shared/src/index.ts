@@ -61,6 +61,73 @@ export const recipeQuerySchema = z.object({
 });
 export type RecipeQuery = z.infer<typeof recipeQuerySchema>;
 
+// ---- Meal plan ----
+
+/** The three meals of a day, in the order they are shown. */
+export const mealTypes = ['breakfast', 'lunch', 'dinner'] as const;
+export type MealType = (typeof mealTypes)[number];
+
+/**
+ * What a meal plan entry is:
+ * - `recipe`: one of the saved recipes
+ * - `eat_out`: eating out, so there is no recipe
+ */
+export const mealPlanKinds = ['recipe', 'eat_out'] as const;
+export type MealPlanKind = (typeof mealPlanKinds)[number];
+
+/** A calendar day without a time, as "YYYY-MM-DD". */
+const isoDate = z.iso.date();
+
+export const mealPlanEntryInputSchema = z
+  .object({
+    date: isoDate,
+    meal: z.enum(mealTypes),
+    kind: z.enum(mealPlanKinds),
+    recipeId: z.number().int().positive().nullable().optional(),
+    /** True when this is a lunch box ("matlåda") made from an earlier meal. */
+    isLeftover: z.boolean().default(false),
+  })
+  .refine((e) => (e.kind === 'recipe') === (e.recipeId != null), {
+    path: ['recipeId'],
+    message: 'recipeId krävs för recept och får inte anges annars',
+  })
+  .refine((e) => !(e.isLeftover && e.kind !== 'recipe'), {
+    path: ['isLeftover'],
+    message: 'Bara recept kan bli matlåda',
+  });
+export type MealPlanEntryInput = z.input<typeof mealPlanEntryInputSchema>;
+
+/** Moving an entry to another day and/or meal. */
+export const mealPlanMoveSchema = z.object({
+  date: isoDate,
+  meal: z.enum(mealTypes),
+});
+export type MealPlanMove = z.infer<typeof mealPlanMoveSchema>;
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** Which days to fetch, both ends included. At most about two months at a time. */
+export const mealPlanQuerySchema = z
+  .object({ from: isoDate, to: isoDate })
+  .refine((r) => r.from <= r.to, { path: ['to'], message: 'to får inte vara före from' })
+  .refine((r) => Date.parse(r.to) - Date.parse(r.from) <= 62 * DAY_MS, {
+    path: ['to'],
+    message: 'Högst 62 dagar åt gången',
+  });
+export type MealPlanQuery = z.infer<typeof mealPlanQuerySchema>;
+
+/** A meal plan entry as returned by the API. */
+export interface MealPlanEntry {
+  id: number;
+  date: string;
+  meal: MealType;
+  kind: MealPlanKind;
+  recipeId: number | null;
+  /** Title of the recipe, so the calendar doesn't need a second request. */
+  recipeTitle: string | null;
+  isLeftover: boolean;
+}
+
 export const loginSchema = z.object({
   password: z.string().min(1).max(200),
 });
