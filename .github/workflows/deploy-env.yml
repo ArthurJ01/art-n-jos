@@ -82,7 +82,7 @@ jobs:
         env:
           APP_URL: ${{ vars.APP_URL }}
           DEPLOY_URL: ${{ steps.deploy.outputs.url }}
-        run: vercel alias set "$DEPLOY_URL" "${APP_URL#https://}" --token=${{ secrets.VERCEL_TOKEN }}
+        run: vercel alias set "$DEPLOY_URL" "${APP_URL#https://}" --scope "$VERCEL_ORG_ID" --token=${{ secrets.VERCEL_TOKEN }}
 
       # Check that the live site answers and is connected to its database.
       # (Only for prod: dev is protected by Vercel login, so a plain curl gets 401.)
