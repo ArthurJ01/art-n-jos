@@ -63,8 +63,10 @@ h2 {
 
 .header {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
+  gap: 0.5rem 1rem;
   padding: 1.25rem 0;
   border-bottom: 1px solid var(--border);
   margin-bottom: 2rem;
@@ -77,6 +79,7 @@ h2 {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  white-space: nowrap;
 }
 
 .env-badge {
@@ -91,8 +94,9 @@ h2 {
 
 .header-left {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 1.5rem;
+  gap: 0.25rem 1.5rem;
 }
 
 .nav {
@@ -146,6 +150,7 @@ h2 {
   border-radius: var(--radius);
   font: inherit;
   font-size: 0.92rem;
+  white-space: nowrap;
   cursor: pointer;
   transition:
     background 0.15s,
@@ -372,5 +377,342 @@ textarea.input {
   }
   h1 {
     font-size: 1.6rem;
+  }
+}
+
+/* ---- Meal planner ---- */
+.shell-wide {
+  max-width: 1320px;
+}
+
+.planner-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.planner-head h1 {
+  margin: 0;
+}
+
+.week-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.week-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 9.5rem;
+  line-height: 1.3;
+  font-size: 0.85rem;
+}
+
+.week-label strong {
+  font-size: 1rem;
+}
+
+.planner {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 1.25rem;
+  align-items: start;
+}
+
+.planner-readonly {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* The list of recipes stays in view while the page scrolls. */
+.palette {
+  position: sticky;
+  top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  max-height: calc(100vh - 2rem);
+  padding: 0.85rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.palette-hint {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.palette-search {
+  padding: 0.4rem 0.6rem;
+  font-size: 0.9rem;
+}
+
+.palette-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  overflow-y: auto;
+  font-size: 0.85rem;
+  /* Room for the focus outline, which overflow would otherwise cut off. */
+  padding: 3px;
+  margin: -3px;
+}
+
+/* A chip is one recipe (or "Äta ute"), in the list and in the calendar. */
+.chip {
+  display: block;
+  width: 100%;
+  padding: 0.35rem 0.55rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.85rem;
+  line-height: 1.35;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.chip:focus-visible,
+.slot-add:focus-visible,
+.entry-action:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.chip-eat-out {
+  background: #2a2114;
+  border-color: #4a3a20;
+}
+
+.chip-leftover {
+  border-style: dashed;
+}
+
+.chip-selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.chip-overlay {
+  width: max-content;
+  max-width: 220px;
+  border-color: var(--accent);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.5);
+  cursor: grabbing;
+}
+
+.palette-item {
+  flex-shrink: 0;
+  cursor: grab;
+  /* Lets the browser scroll on a quick swipe; press and hold starts a drag. */
+  touch-action: manipulation;
+}
+
+.palette-item:hover {
+  border-color: #3a3f4b;
+}
+
+/*
+ * Seven days side by side. Each day is its own grid that borrows the row
+ * tracks of the week (subgrid), so that "Lunch" lines up across all days
+ * even when one day has more in it than the others.
+ */
+.week {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.day {
+  display: grid;
+  grid-row: span 4;
+  grid-template-rows: subgrid;
+  row-gap: 0.4rem;
+}
+
+.day-head {
+  display: flex;
+  flex-direction: column;
+  padding: 0.3rem 0.5rem;
+  border-bottom: 2px solid var(--border);
+  line-height: 1.3;
+}
+
+.day-name {
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-transform: capitalize;
+}
+
+.day-date {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.day-today .day-head {
+  border-bottom-color: var(--accent);
+}
+
+.day-today .day-name {
+  color: var(--accent);
+}
+
+.slot {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-height: 6rem;
+  padding: 0.4rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  transition:
+    border-color 0.1s,
+    background 0.1s;
+}
+
+.slot-over {
+  border-color: var(--accent);
+  background: #221b12;
+}
+
+.slot-label {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.slot-add {
+  margin-top: auto;
+  padding: 0.1rem;
+  background: transparent;
+  border: 1px dashed var(--accent);
+  border-radius: 8px;
+  color: var(--accent);
+  font: inherit;
+  cursor: pointer;
+}
+
+.slot-add:hover {
+  background: #221b12;
+}
+
+.entry {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.25rem;
+}
+
+.entry-editable {
+  cursor: grab;
+  touch-action: manipulation;
+}
+
+.entry-dragging {
+  opacity: 0.35;
+}
+
+.entry-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.entry-text a {
+  color: inherit;
+}
+
+.entry-text a:hover {
+  color: var(--accent);
+}
+
+.entry-badge {
+  display: block;
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+}
+
+.entry-actions {
+  display: flex;
+  flex-shrink: 0;
+}
+
+.entry-action {
+  padding: 0 0.2rem;
+  background: none;
+  border: 0;
+  border-radius: 4px;
+  color: var(--muted);
+  font: inherit;
+  line-height: 1.35;
+  cursor: pointer;
+}
+
+.entry-action:hover {
+  color: var(--text);
+  background: var(--border);
+}
+
+/* With a mouse, only show the buttons on the chip you point at (or tab to). */
+@media (hover: hover) {
+  .entry-actions {
+    opacity: 0;
+  }
+
+  .entry:hover .entry-actions,
+  .entry:focus-within .entry-actions {
+    opacity: 1;
+  }
+}
+
+/* Narrow screens: the recipe list goes on top and the days stack. */
+@media (max-width: 900px) {
+  .planner {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .palette {
+    top: 0;
+    z-index: 1;
+    max-height: none;
+    margin: 0 -0.5rem;
+  }
+
+  .palette-list {
+    flex-direction: row;
+    overflow-x: auto;
+    padding-bottom: 0.3rem;
+  }
+
+  .palette-item {
+    width: auto;
+    max-width: 14rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .week {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1.25rem;
+  }
+
+  .day {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .slot {
+    min-height: 3.25rem;
   }
 }

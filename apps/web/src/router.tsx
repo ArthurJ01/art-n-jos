@@ -19,6 +19,17 @@ export const router = createBrowserRouter([
       { path: paths.recipes, element: <RecipeListPage /> },
       { path: paths.recipe(':id'), element: <RecipeDetailPage /> },
       {
+        path: paths.mealPlanner,
+        // Loaded on demand: the drag-and-drop code is only downloaded when
+        // someone opens the planner, so the recipe pages stay light.
+        lazy: async () => {
+          const { MealPlannerPage } = await import('./pages/MealPlannerPage');
+          return { Component: MealPlannerPage };
+        },
+        // The week calendar needs more room than the text pages (see Layout).
+        handle: { wide: true },
+      },
+      {
         element: <RequireAuth />,
         children: [
           { path: paths.newRecipe, element: <RecipeFormPage /> },

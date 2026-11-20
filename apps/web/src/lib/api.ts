@@ -5,7 +5,16 @@
  * which handles caching, loading states and refetching for us.
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { ApiError, HealthResponse, Recipe, RecipeInput, RecipeQuery } from '@art-web/shared';
+import type {
+  ApiError,
+  HealthResponse,
+  MealPlanEntry,
+  MealPlanEntryInput,
+  MealPlanMove,
+  Recipe,
+  RecipeInput,
+  RecipeQuery,
+} from '@art-web/shared';
 
 export class ApiRequestError extends Error {
   constructor(
@@ -34,6 +43,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 export const keys = {
   recipes: (query: RecipeQuery = {}) => ['recipes', query] as const,
   recipe: (id: number) => ['recipe', id] as const,
+  mealPlan: (from: string, to: string) => ['mealPlan', from, to] as const,
   me: ['me'] as const,
   health: ['health'] as const,
 };
@@ -68,6 +78,8 @@ export function useSaveRecipe(id?: number) {
       }),
     onSuccess: (recipe) => {
       qc.setQueryData(keys.recipe(recipe.id), recipe);
+      // The meal plan shows recipe titles, so it may be out of date too.
+      void qc.invalidateQueries({ queryKey: mealPlanKey });
       return qc.invalidateQueries({ queryKey: ['recipes'] });
     },
   });
@@ -77,8 +89,111 @@ export function useDeleteRecipe() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: number) => request<void>(`/recipes/${id}`, { method: 'DELETE' }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['recipes'] }),
+    onSuccess: () => {
+      // Deleting a recipe also removes it from the meal plan.
+      void qc.invalidateQueries({ queryKey: mealPlanKey });
+      return qc.invalidateQueries({ queryKey: ['recipes'] });
+    },
   });
+}
+
+// ---- Meal plan ----
+/** Prefix of every meal plan query key, to invalidate all cached weeks at once. */
+const mealPlanKey = ['mealPlan'] as const;
+
+export function useMealPlan(from: string, to: string) {
+  return useQuery({
+    queryKey: keys.mealPlan(from, to),
+    queryFn: () => request<MealPlanEntry[]>(`/meal-plan?from=${from}&to=${to}`),
+  });
+}
+
+type MealPlanSnapshot = [readonly unknown[], MealPlanEntry[] | undefined][];
+
+/**
+ * A meal plan mutation with an "optimistic update": the calendar changes
+ * right away instead of waiting for the server, which is what makes drag and
+ * drop feel instant. If the request fails, the old data is put back.
+ *
+ * `apply` describes the change: it gets the cached entries for one week
+ * (`range`) and returns what they should look like after the mutation.
+ */
+function useMealPlanMutation<TVars, TData>(
+  mutationFn: (vars: TVars) => Promise<TData>,
+  apply: (
+    entries: MealPlanEntry[],
+    vars: TVars,
+    range: { from: string; to: string },
+  ) => MealPlanEntry[],
+) {
+  const qc = useQueryClient();
+  return useMutation<TData, Error, TVars, { snapshot: MealPlanSnapshot }>({
+    mutationKey: mealPlanKey,
+    mutationFn,
+    onMutate: async (vars) => {
+      // Stop any fetch in flight so it can't overwrite the optimistic data.
+      await qc.cancelQueries({ queryKey: mealPlanKey });
+      const snapshot = qc.getQueriesData<MealPlanEntry[]>({ queryKey: mealPlanKey });
+      for (const [key, entries] of snapshot) {
+        if (!entries) continue;
+        const [, from, to] = key as ReturnType<typeof keys.mealPlan>;
+        qc.setQueryData(key, apply(entries, vars, { from, to }));
+      }
+      return { snapshot };
+    },
+    onError: (_error, _vars, context) => {
+      context?.snapshot.forEach(([key, entries]) => qc.setQueryData(key, entries));
+    },
+    onSettled: () => {
+      // Refetch to get the real data, but only once the last change is done.
+      // Otherwise a refetch could briefly undo a newer optimistic change.
+      if (qc.isMutating({ mutationKey: mealPlanKey }) === 1) {
+        return qc.invalidateQueries({ queryKey: mealPlanKey });
+      }
+    },
+  });
+}
+
+/** Optimistic entries get negative ids until the server has given them a real one. */
+let nextTempId = -1;
+export const isSavedEntry = (entry: MealPlanEntry) => entry.id > 0;
+
+export function useAddMealPlanEntry() {
+  return useMealPlanMutation(
+    // recipeTitle is only used to show the entry before the server has answered.
+    ({ input }: { input: MealPlanEntryInput; recipeTitle: string | null }) =>
+      request<MealPlanEntry>('/meal-plan', { method: 'POST', body: JSON.stringify(input) }),
+    (entries, { input, recipeTitle }, { from, to }) =>
+      input.date < from || input.date > to
+        ? entries
+        : [
+            ...entries,
+            {
+              id: nextTempId--,
+              date: input.date,
+              meal: input.meal,
+              kind: input.kind,
+              recipeId: input.recipeId ?? null,
+              recipeTitle,
+              isLeftover: input.isLeftover ?? false,
+            },
+          ],
+  );
+}
+
+export function useMoveMealPlanEntry() {
+  return useMealPlanMutation(
+    ({ id, ...slot }: MealPlanMove & { id: number }) =>
+      request<MealPlanEntry>(`/meal-plan/${id}`, { method: 'PATCH', body: JSON.stringify(slot) }),
+    (entries, { id, date, meal }) => entries.map((e) => (e.id === id ? { ...e, date, meal } : e)),
+  );
+}
+
+export function useDeleteMealPlanEntry() {
+  return useMealPlanMutation(
+    (id: number) => request<void>(`/meal-plan/${id}`, { method: 'DELETE' }),
+    (entries, id) => entries.filter((e) => e.id !== id),
+  );
 }
 
 // ---- Auth ----
