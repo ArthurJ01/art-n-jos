@@ -76,13 +76,24 @@ jobs:
 
       # Production deploys get the production domains automatically.
       # A dev (preview) deploy gets a fresh random URL, so point the stable dev
-      # address at it.
+      # address at it. We call Vercel's REST API directly: `vercel alias set`
+      # needs a personal-account lookup that team-scoped tokens can't do.
       - name: Point the dev address at this deployment
         if: inputs.vercel-target == 'preview' && vars.APP_URL != ''
         env:
           APP_URL: ${{ vars.APP_URL }}
           DEPLOY_URL: ${{ steps.deploy.outputs.url }}
-        run: vercel alias set "$DEPLOY_URL" "${APP_URL#https://}" --scope "$VERCEL_ORG_ID" --token=${{ secrets.VERCEL_TOKEN }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          api="https://api.vercel.com"
+          auth="Authorization: Bearer $VERCEL_TOKEN"
+          id=$(curl -fsS -H "$auth" "$api/v13/deployments/${DEPLOY_URL#https://}?teamId=$VERCEL_ORG_ID" | jq -r .id)
+          echo "Deployment id: $id"
+          curl --fail-with-body -sS -X POST -H "$auth" -H "Content-Type: application/json" \
+            -d "$(jq -n --arg a "${APP_URL#https://}" '{alias: $a}')" \
+            "$api/v2/deployments/$id/aliases?teamId=$VERCEL_ORG_ID"
+          echo
+          echo "$APP_URL now points at $DEPLOY_URL"
 
       # Check that the live site answers and is connected to its database.
       # (Only for prod: dev is protected by Vercel login, so a plain curl gets 401.)
