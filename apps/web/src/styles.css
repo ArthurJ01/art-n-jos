@@ -89,9 +89,32 @@ h2 {
   color: var(--accent);
 }
 
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
 .nav {
   display: flex;
+  align-items: center;
   gap: 0.5rem;
+}
+
+.nav-link {
+  color: var(--muted);
+  font-size: 0.95rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+}
+
+.nav-link:hover,
+.nav-link.active {
+  color: var(--text);
+}
+
+.nav-link.active {
+  background: var(--surface-2);
 }
 
 .main {
@@ -187,6 +210,10 @@ textarea.input {
   margin-bottom: 1.5rem;
 }
 
+.toolbar-action {
+  flex-shrink: 0;
+}
+
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
@@ -247,6 +274,21 @@ textarea.input {
   color: var(--accent);
   border-color: var(--accent);
   cursor: pointer;
+}
+
+/* ---- Start page ---- */
+.area-card {
+  padding: 1.5rem 1.4rem;
+}
+
+.area-icon {
+  display: block;
+  font-size: 1.8rem;
+  margin-bottom: 0.5rem;
+}
+
+.area-card .card-desc {
+  margin-bottom: 0;
 }
 
 /* ---- Recipe page ---- */

@@ -7,6 +7,11 @@ export function formatMinutes(minutes: number | null | undefined): string | null
   return m === 0 ? `${h} h` : `${h} h ${m} min`;
 }
 
+/** 1 → "1 portion", 4 → "4 portioner" */
+export function formatServings(servings: number): string {
+  return `${servings} ${servings === 1 ? 'portion' : 'portioner'}`;
+}
+
 /** Split a textarea into trimmed, non-empty lines. */
 export function toLines(text: string): string[] {
   return text

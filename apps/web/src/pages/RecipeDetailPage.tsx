@@ -1,6 +1,7 @@
 import { Link, useNavigate, useParams } from 'react-router';
 import { useDeleteRecipe, useMe, useRecipe } from '../lib/api';
-import { formatMinutes } from '../lib/format';
+import { formatMinutes, formatServings } from '../lib/format';
+import { paths } from '../lib/paths';
 
 export function RecipeDetailPage() {
   const id = Number(useParams().id);
@@ -9,24 +10,25 @@ export function RecipeDetailPage() {
   const del = useDeleteRecipe();
   const navigate = useNavigate();
 
-  if (isPending) return <p className="muted">Loading…</p>;
-  if (error || !recipe) return <p className="error">{error?.message ?? 'Recipe not found'}</p>;
+  if (isPending) return <p className="muted">Laddar…</p>;
+  if (error || !recipe)
+    return <p className="error">{error?.message ?? 'Receptet hittades inte'}</p>;
 
   const onDelete = () => {
-    if (!window.confirm(`Delete "${recipe.title}"?`)) return;
-    del.mutate(recipe.id, { onSuccess: () => navigate('/') });
+    if (!window.confirm(`Ta bort "${recipe.title}"?`)) return;
+    del.mutate(recipe.id, { onSuccess: () => navigate(paths.recipes) });
   };
 
   const meta = [
-    recipe.servings && `${recipe.servings} ${recipe.servings === 1 ? 'serving' : 'servings'}`,
-    formatMinutes(recipe.prepMinutes) && `Prep ${formatMinutes(recipe.prepMinutes)}`,
-    formatMinutes(recipe.cookMinutes) && `Cook ${formatMinutes(recipe.cookMinutes)}`,
+    recipe.servings && formatServings(recipe.servings),
+    formatMinutes(recipe.prepMinutes) && `Förberedelse ${formatMinutes(recipe.prepMinutes)}`,
+    formatMinutes(recipe.cookMinutes) && `Tillagning ${formatMinutes(recipe.cookMinutes)}`,
   ].filter(Boolean);
 
   return (
     <article className="recipe">
-      <Link to="/" className="back">
-        ← All recipes
+      <Link to={paths.recipes} className="back">
+        ← Alla recept
       </Link>
       <h1>{recipe.title}</h1>
       {recipe.description && <p className="lead">{recipe.description}</p>}
@@ -35,7 +37,7 @@ export function RecipeDetailPage() {
           <span key={String(m)}>{m}</span>
         ))}
         {recipe.tags.map((t) => (
-          <Link key={t} to={`/?tag=${encodeURIComponent(t)}`} className="tag">
+          <Link key={t} to={`${paths.recipes}?tag=${encodeURIComponent(t)}`} className="tag">
             {t}
           </Link>
         ))}
@@ -43,7 +45,7 @@ export function RecipeDetailPage() {
 
       <div className="recipe-body">
         <section>
-          <h2>Ingredients</h2>
+          <h2>Ingredienser</h2>
           <ul className="ingredients">
             {recipe.ingredients.map((i, idx) => (
               <li key={idx}>{i}</li>
@@ -51,7 +53,7 @@ export function RecipeDetailPage() {
           </ul>
         </section>
         <section>
-          <h2>Steps</h2>
+          <h2>Gör så här</h2>
           <ol className="steps">
             {recipe.steps.map((s, idx) => (
               <li key={idx}>{s}</li>
@@ -61,21 +63,21 @@ export function RecipeDetailPage() {
       </div>
 
       <footer className="recipe-footer muted">
-        {recipe.createdBy && <span>Added by {recipe.createdBy}. </span>}
+        {recipe.createdBy && <span>Tillagt av {recipe.createdBy}. </span>}
         {recipe.sourceUrl && (
           <a href={recipe.sourceUrl} target="_blank" rel="noreferrer">
-            Original source ↗
+            Originalkälla ↗
           </a>
         )}
       </footer>
 
       {me?.authenticated && (
         <div className="actions">
-          <Link to={`/recipes/${recipe.id}/edit`} className="button">
-            Edit
+          <Link to={paths.editRecipe(recipe.id)} className="button">
+            Redigera
           </Link>
           <button type="button" className="button button-danger" onClick={onDelete}>
-            Delete
+            Ta bort
           </button>
         </div>
       )}

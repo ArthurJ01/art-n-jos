@@ -29,7 +29,8 @@ describe('RecipeCard', () => {
     );
     expect(screen.getByRole('heading', { name: 'Pasta aglio e olio' })).toBeInTheDocument();
     expect(screen.getByText('15 min')).toBeInTheDocument();
+    expect(screen.getByText('2 portioner')).toBeInTheDocument();
     expect(screen.getByText('quick')).toBeInTheDocument();
-    expect(screen.getByRole('link')).toHaveAttribute('href', '/recipes/7');
+    expect(screen.getByRole('link')).toHaveAttribute('href', '/recept/7');
   });
 });
