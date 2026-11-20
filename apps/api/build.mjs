@@ -4,7 +4,7 @@
 import { build } from 'esbuild';
 
 await build({
-  entryPoints: ['src/index.ts', 'src/db/migrate.ts'],
+  entryPoints: ['src/index.ts', 'src/vercel.ts', 'src/db/migrate.ts'],
   outdir: 'dist',
   outbase: 'src',
   bundle: true,

@@ -1,9 +1,13 @@
 # Reusable "deploy one environment" workflow, called by deploy.yml for dev and prod.
 #
-# Each GitHub Environment (Settings -> Environments) must define:
-#   secrets.DATABASE_URL            Neon connection string for that environment
-#   secrets.RENDER_DEPLOY_HOOK_URL  Deploy hook from the Render service's Settings page
-#   vars.APP_URL                    e.g. https://art-web-dev.onrender.com
+# Repository-level (Settings -> Secrets and variables -> Actions):
+#   secrets.VERCEL_TOKEN      Vercel access token (vercel.com/account/tokens)
+#   vars.VERCEL_ORG_ID        from .vercel/project.json after `vercel link`, or Vercel settings
+#   vars.VERCEL_PROJECT_ID    same place
+#
+# Per GitHub Environment (Settings -> Environments -> dev / production):
+#   secrets.DATABASE_URL      Neon *direct* connection string, used for migrations
+#   vars.APP_URL              e.g. https://dev.jos-n-art.com or https://jos-n-art.com
 name: Deploy environment
 
 on:
@@ -12,64 +16,89 @@ on:
       environment:
         required: true
         type: string
-      image:
-        description: Full image reference including digest (ghcr.io/owner/repo@sha256:...)
+      vercel-target:
+        description: preview (dev) or production (prod)
         required: true
         type: string
 
 permissions:
   contents: read
-  packages: read
+
+env:
+  VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+  VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+  VERCEL_CLI: vercel@66
 
 jobs:
   deploy:
     name: ${{ inputs.environment }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    # Using a GitHub Environment gives us per-environment secrets, a deployment
-    # history, and (for production) a "required reviewers" approval gate.
+    # A GitHub Environment gives us per-environment secrets, a deployment history,
+    # and (for production) a "required reviewers" approval gate.
     environment:
       name: ${{ inputs.environment }}
       url: ${{ vars.APP_URL }}
     steps:
-      - uses: docker/login-action@v4
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/checkout@v7
 
-      # Migrations run BEFORE the new code goes live, using the migration files
-      # shipped inside the image itself. Write migrations that the *old* code
-      # can also live with (add columns, don't rename/drop in the same deploy).
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      # Migrations run BEFORE the new code goes live. Write migrations that the
+      # *old* code can also live with (add columns; rename/drop in a later deploy).
       - name: Run database migrations
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          IMAGE: ${{ inputs.image }}
-        run: docker run --rm -e DATABASE_URL "$IMAGE" node apps/api/dist/db/migrate.js
+        run: npm run db:migrate --workspace apps/api
 
-      - name: Trigger Render deploy
-        env:
-          HOOK: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
-          IMAGE: ${{ inputs.image }}
+      - name: Install Vercel CLI
+        run: npm install --global "$VERCEL_CLI"
+
+      - name: Pull Vercel project settings
+        run: vercel pull --yes --environment=${{ inputs.vercel-target }} --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Build
+        run: vercel build ${{ inputs.vercel-target == 'production' && '--prod' || '' }} --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Deploy
+        id: deploy
         run: |
-          encoded=$(jq -rn --arg v "$IMAGE" '$v|@uri')
-          curl --fail-with-body -sS -X POST "${HOOK}&imgURL=${encoded}"
+          url=$(vercel deploy --prebuilt ${{ inputs.vercel-target == 'production' && '--prod' || '' }} \
+            --env APP_VERSION=${{ github.sha }} \
+            --token=${{ secrets.VERCEL_TOKEN }})
+          echo "Deployed to $url"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
 
-      # Render deploys in the background. Poll /api/health until it reports the
-      # commit we just built, so the pipeline only goes green when it's really live.
-      - name: Wait until the new version is live
+      # Production deploys get the production domains automatically.
+      # A dev (preview) deploy gets a fresh random URL, so point the stable dev
+      # address at it.
+      - name: Point the dev address at this deployment
+        if: inputs.vercel-target == 'preview' && vars.APP_URL != ''
         env:
           APP_URL: ${{ vars.APP_URL }}
-          EXPECTED: ${{ github.sha }}
+          DEPLOY_URL: ${{ steps.deploy.outputs.url }}
+        run: vercel alias set "$DEPLOY_URL" "${APP_URL#https://}" --token=${{ secrets.VERCEL_TOKEN }}
+
+      # Check that the live site answers and is connected to its database.
+      # (Only for prod: dev is protected by Vercel login, so a plain curl gets 401.)
+      - name: Smoke test
+        if: inputs.vercel-target == 'production'
+        env:
+          APP_URL: ${{ vars.APP_URL }}
         run: |
-          for i in $(seq 1 60); do
-            version=$(curl -fsS --max-time 60 "$APP_URL/api/health" | jq -r .version || true)
-            echo "Attempt $i: live version is '${version}', waiting for '${EXPECTED}'"
-            if [ "$version" = "$EXPECTED" ]; then
-              echo "Deployed ✅"
+          for i in $(seq 1 10); do
+            body=$(curl -fsS --max-time 30 "$APP_URL/api/health" || true)
+            echo "Attempt $i: $body"
+            if [ "$(echo "$body" | jq -r .status 2>/dev/null)" = "ok" ]; then
+              echo "Live version: $(echo "$body" | jq -r .version) (expected ${{ github.sha }})"
               exit 0
             fi
-            sleep 10
+            sleep 6
           done
-          echo "Timed out waiting for the deploy. Check the Render dashboard logs."
+          echo "Health check failed. Check the function logs in the Vercel dashboard."
           exit 1
