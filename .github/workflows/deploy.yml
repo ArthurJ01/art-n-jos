@@ -1,20 +1,28 @@
-# Continuous Delivery pipeline. On every push to main:
+# Continuous Delivery pipeline. Each long-lived branch deploys its own environment:
 #
-#   CI  ->  deploy to dev  ->  (your approval)  ->  deploy to prod
+#   push to dev   ->  CI  ->  deploy to dev
+#   push to main  ->  CI  ->  deploy to prod
 #
-# Each deploy step migrates that environment's database first, then builds the
-# app with the Vercel CLI and uploads it. Vercel's own "deploy on every push" is
+# Feature branches merge into dev. When dev looks good on the dev site, a
+# dev -> main pull request ("release") ships it to prod. release-source.yml
+# makes sure main only receives pull requests from dev.
+#
+# Each deploy migrates that environment's database first, then builds the app
+# with the Vercel CLI and uploads it. Vercel's own "deploy on every push" is
 # switched off in vercel.json, so GitHub Actions is the only thing that deploys.
 name: Deploy
 
 on:
   push:
-    branches: [main]
-  workflow_dispatch: # lets you start it manually from the Actions tab
+    branches: [dev, main]
+  # Lets you start it manually from the Actions tab. The branch you pick
+  # decides which environment is deployed.
+  workflow_dispatch:
 
-# Never run two deploys at the same time; queue them instead.
+# Never run two deploys of the same environment at once; queue them instead.
+# Each branch has its own queue, so a prod release never blocks a dev deploy.
 concurrency:
-  group: deploy
+  group: deploy-${{ github.ref_name }}
   cancel-in-progress: false
 
 permissions:
@@ -30,7 +38,7 @@ jobs:
   deploy-dev:
     name: Deploy to dev
     needs: ci
-    if: vars.DEPLOY_ENABLED == 'true'
+    if: vars.DEPLOY_ENABLED == 'true' && github.ref == 'refs/heads/dev'
     uses: ./.github/workflows/deploy-env.yml
     with:
       environment: dev
@@ -39,8 +47,8 @@ jobs:
 
   deploy-prod:
     name: Deploy to prod
-    needs: deploy-dev
-    if: vars.DEPLOY_ENABLED == 'true'
+    needs: ci
+    if: vars.DEPLOY_ENABLED == 'true' && github.ref == 'refs/heads/main'
     uses: ./.github/workflows/deploy-env.yml
     with:
       environment: production

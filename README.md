@@ -9,16 +9,16 @@ A small full-stack web app for collecting recipes. It also works as a practice p
              └────────────────────────────────────────────────┘
 ```
 
-| Layer       | Tech                                                          |
-| ----------- | ------------------------------------------------------------- |
-| Frontend    | React 19, TypeScript, Vite, React Router, TanStack Query      |
-| API         | Node 22, Express 5, Zod validation, Pino logging              |
-| Database    | PostgreSQL 16 through Drizzle ORM, with SQL migrations        |
-| Shared code | `packages/shared`: Zod schemas and types used by both sides   |
-| Tests       | Vitest, Supertest (API against a real DB), Testing Library    |
-| Quality     | ESLint, Prettier, TypeScript strict mode                      |
-| CI/CD       | GitHub Actions → Vercel CLI (dev → approval → prod)           |
-| Hosting     | Vercel (site + API), Neon (Postgres). Free tiers, so $0/month |
+| Layer       | Tech                                                            |
+| ----------- | --------------------------------------------------------------- |
+| Frontend    | React 19, TypeScript, Vite, React Router, TanStack Query        |
+| API         | Node 22, Express 5, Zod validation, Pino logging                |
+| Database    | PostgreSQL 16 through Drizzle ORM, with SQL migrations          |
+| Shared code | `packages/shared`: Zod schemas and types used by both sides     |
+| Tests       | Vitest, Supertest (API against a real DB), Testing Library      |
+| Quality     | ESLint, Prettier, TypeScript strict mode                        |
+| CI/CD       | GitHub Actions → Vercel CLI (`dev` branch → dev, `main` → prod) |
+| Hosting     | Vercel (site + API), Neon (Postgres). Free tiers, so $0/month   |
 
 ## Project structure
 
@@ -81,14 +81,22 @@ Open http://localhost:5173 and log in with the `APP_PASSWORD` from your `.env`.
 
 ## Day-to-day workflow
 
-1. Create a branch: `git switch -c feature/favourite-recipes`
+There are two long-lived branches. Each one deploys its own environment:
+
+```
+feature branch ──PR──▶ dev  ──merge──▶ deploys the dev site
+dev            ──PR──▶ main ──merge──▶ deploys prod
+```
+
+1. Start from the latest `dev`: `git switch dev && git pull`, then `git switch -c feature/favourite-recipes`.
 2. Make your change, and add or adjust tests.
-3. Push and open a pull request. **CI** runs a format check, lint, typecheck, tests and build.
-4. Merge into `main`. The **Deploy** pipeline then:
-   1. runs CI again,
-   2. runs DB migrations on **dev** and deploys to dev (a Vercel preview),
-   3. waits for your **approval**, then migrates the prod DB and deploys to **prod**.
-5. Check the dev site (it shows a `DEV` badge). If it looks right, approve the prod deploy in the Actions tab.
+3. Push and open a pull request **into `dev`** (the default branch). **CI** runs a format check, lint, typecheck, tests and build.
+4. Merge it. The **Deploy** pipeline runs CI again, migrates the **dev** database and deploys the dev site (it shows a `DEV` badge). Merge as many pull requests into `dev` as you like.
+5. When the dev site looks right, release: open a pull request from **`dev` into `main`** and merge it with **"Create a merge commit"**. The pipeline migrates the **prod** database and deploys **prod**.
+
+Pull requests into `main` from any branch other than `dev` fail the "PRs to main come from dev" check.
+
+**Why a merge commit for releases?** "Squash and merge" writes dev's changes into `main` as one brand-new commit that `dev` doesn't have. Git then sees the branches as different, so every later release pull request shows old changes again and can conflict. Squashing feature pull requests into `dev` is fine.
 
 ### Changing the database
 

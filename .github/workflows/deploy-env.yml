@@ -35,7 +35,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     # A GitHub Environment gives us per-environment secrets, a deployment history,
-    # and (for production) a "required reviewers" approval gate.
+    # and (optionally, for production) a "required reviewers" approval gate.
     environment:
       name: ${{ inputs.environment }}
       url: ${{ vars.APP_URL }}
