@@ -10,7 +10,7 @@
     "node": "22.x"
   },
   "scripts": {
-    "dev": "npm run dev --workspace apps/api & npm run dev --workspace apps/web & wait",
+    "dev": "concurrently --names api,web --prefix-colors blue,green --kill-others-on-fail \"npm run dev --workspace apps/api\" \"npm run dev --workspace apps/web\"",
     "build": "npm run build --workspaces --if-present",
     "lint": "eslint .",
     "format": "prettier --write .",
@@ -23,6 +23,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "concurrently": "^10.0.7",
     "eslint": "^10.15.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-react-hooks": "^7.1.1",
