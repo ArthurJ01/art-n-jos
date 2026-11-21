@@ -120,7 +120,7 @@ Every change goes into `dev` first (deploys the dev site), and `main` only takes
    - ✅ Require status checks to pass: add `Lint, typecheck, test, build`
    - ✅ Block force pushes
    - ✅ Restrict deletions
-5. A second ruleset named `main`, the same as above but targeting `main`, and with both `Lint, typecheck, test, build` and `PRs to main come from dev` as required status checks. GitHub only offers a check in that list after it has run once, so open a test `dev` → `main` pull request first if it's missing.
+5. A second ruleset named `main`, the same as above but targeting `main`, and with both `Lint, typecheck, test, build` and `PRs to main come from dev` as required status checks (source: GitHub Actions). Without the second one, a pull request from another branch only shows a red check and can still be merged. GitHub only offers a check in that list after it has run once; both run on every pull request, so open any pull request first if one is missing.
 
 ---
 

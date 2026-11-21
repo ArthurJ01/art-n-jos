@@ -1,17 +1,65 @@
 # Continuous Integration: runs on every pull request, and is reused by deploy.yml
 # so nothing reaches dev/prod without passing these checks.
+#
+# Two jobs, in order:
+#   1. "PRs to main come from dev": a few seconds; makes sure main only gets
+#      pull requests from dev, so everything reaches prod through the dev site.
+#   2. "Lint, typecheck, test, build": only starts once job 1 has passed.
+# Both are required status checks in the main ruleset (docs/SETUP.md step 7).
 name: CI
 
 on:
   pull_request:
+    # The default types plus "edited", so the dev check runs again when a pull
+    # request is retargeted to main. (Editing the title or description also
+    # re-runs CI. That costs a couple of minutes but never leaves a stale result.)
+    types: [opened, synchronize, reopened, edited]
   workflow_call:
 
 permissions:
   contents: read
 
 jobs:
+  from-dev:
+    name: PRs to main come from dev
+    # Only meaningful for pull requests. When deploy.yml calls this workflow
+    # after a push, the job is skipped and the tests run straight away.
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Check that a pull request into main comes from dev
+        env:
+          # Passed through env, never pasted into the script: a branch name is
+          # chosen by whoever opens the pull request.
+          BASE_REF: ${{ github.base_ref }}
+          HEAD_REF: ${{ github.head_ref }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          THIS_REPO: ${{ github.repository }}
+        run: |
+          # This job runs (and passes) on every pull request rather than being
+          # skipped for the ones into dev: a required check that is skipped
+          # counts as passed, so retargeting a pull request to main would
+          # otherwise slip through.
+          if [ "$BASE_REF" != "main" ]; then
+            echo "OK: not a pull request into main ($BASE_REF), nothing to check."
+            exit 0
+          fi
+          # Also check the repository: a fork could have its own branch called "dev".
+          if [ "$HEAD_REF" = "dev" ] && [ "$HEAD_REPO" = "$THIS_REPO" ]; then
+            echo "OK: this release comes from dev."
+            exit 0
+          fi
+          echo "::error::Pull requests into main must come from dev (this one is from '$HEAD_REPO:$HEAD_REF'). Merge your branch into dev first, then open a dev -> main pull request."
+          exit 1
+
   test:
     name: Lint, typecheck, test, build
+    needs: from-dev
+    # Run after from-dev has passed, or when it was skipped (calls from
+    # deploy.yml). Without this condition a skipped from-dev would skip the
+    # tests too.
+    if: ${{ !cancelled() && needs.from-dev.result != 'failure' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
