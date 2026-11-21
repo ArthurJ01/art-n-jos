@@ -9,7 +9,7 @@ const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   /** Which deployment this is: local, dev or prod. Shown in the UI and health check. */
   APP_ENV: z.string().default('local'),
-  /** Git commit SHA baked into the Docker image at build time. */
+  /** Git commit SHA of the deployed code, set by the deploy pipeline. */
   APP_VERSION: z.string().default('dev'),
   PORT: z.coerce.number().int().positive().default(3000),
   DATABASE_URL: z.url(),

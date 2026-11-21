@@ -1,7 +1,7 @@
 /**
  * Entry point used on Vercel.
  *
- * Locally and in Docker, src/index.ts starts a long-running server with app.listen().
+ * Locally, src/index.ts starts a long-running server with app.listen().
  * On Vercel there is no long-running server: Vercel calls the Express app once per
  * request as a serverless function. We build the app once per function instance
  * ("cold start") and Vercel reuses it for the following requests.

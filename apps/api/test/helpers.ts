@@ -4,7 +4,7 @@ import { createDb } from '../src/db/client.js';
 import { loadEnv } from '../src/env.js';
 
 export const TEST_DATABASE_URL =
-  process.env.TEST_DATABASE_URL ?? 'postgres://postgres:postgres@localhost:5432/artweb_test';
+  process.env.TEST_DATABASE_URL ?? 'postgres://artweb:artweb@localhost:5432/artweb_test';
 
 export const TEST_PASSWORD = 'test-password-123';
 

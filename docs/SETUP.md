@@ -112,7 +112,7 @@ Then **Settings → Environments**:
 
 - Target: default branch
 - ✅ Require a pull request before merging
-- ✅ Require status checks to pass: add `Lint, typecheck, test, build` and `Docker image builds`
+- ✅ Require status checks to pass: add `Lint, typecheck, test, build`
 - ✅ Block force pushes
 
 ---
@@ -140,6 +140,6 @@ Then **Settings → Environments**:
 | Vercel                 | Hobby      | $0           | Personal, non-commercial use only. About 4 h of _active_ CPU per month, which is hundreds of thousands of API requests. If you hit a limit the API pauses until the month resets; you're never charged. |
 | Domain `jos-n-art.com` | Cloudflare | ~$10.50/year | Same price every year.                                                                                                                                                                                  |
 
-**If you outgrow Vercel's free tier:** the Dockerfile still builds on every PR, so the API can move to Google Cloud Run (free tier) while the site stays on Vercel. Or upgrade to Vercel Pro ($20/month).
+**If you outgrow Vercel's free tier:** upgrade to Vercel Pro ($20/month), or move the API to a host with a free tier such as Google Cloud Run while the site stays on Vercel.
 
 Free-tier limits change over time, so check https://neon.com/pricing and https://vercel.com/pricing.

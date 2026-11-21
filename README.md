@@ -1,6 +1,6 @@
 # art-n-jos
 
-A small full-stack web app for collecting recipes. It also works as a practice project for professional software engineering setups: a monorepo, a typed API, a real database, tests, Docker, CI/CD, and separate dev and prod environments.
+A small full-stack web app for collecting recipes. It also works as a practice project for professional software engineering setups: a monorepo, a typed API, a real database, tests, CI/CD, and separate dev and prod environments.
 
 ```
              ┌──────────────────── Vercel ────────────────────┐
@@ -9,17 +9,16 @@ A small full-stack web app for collecting recipes. It also works as a practice p
              └────────────────────────────────────────────────┘
 ```
 
-| Layer       | Tech                                                           |
-| ----------- | -------------------------------------------------------------- |
-| Frontend    | React 19, TypeScript, Vite, React Router, TanStack Query       |
-| API         | Node 22, Express 5, Zod validation, Pino logging               |
-| Database    | PostgreSQL 16 through Drizzle ORM, with SQL migrations         |
-| Shared code | `packages/shared`: Zod schemas and types used by both sides    |
-| Tests       | Vitest, Supertest (API against a real DB), Testing Library     |
-| Quality     | ESLint, Prettier, TypeScript strict mode                       |
-| Packaging   | Multi-stage Dockerfile (built in CI; ready for Cloud Run etc.) |
-| CI/CD       | GitHub Actions → Vercel CLI (dev → approval → prod)            |
-| Hosting     | Vercel (site + API), Neon (Postgres). Free tiers, so $0/month  |
+| Layer       | Tech                                                          |
+| ----------- | ------------------------------------------------------------- |
+| Frontend    | React 19, TypeScript, Vite, React Router, TanStack Query      |
+| API         | Node 22, Express 5, Zod validation, Pino logging              |
+| Database    | PostgreSQL 16 through Drizzle ORM, with SQL migrations        |
+| Shared code | `packages/shared`: Zod schemas and types used by both sides   |
+| Tests       | Vitest, Supertest (API against a real DB), Testing Library    |
+| Quality     | ESLint, Prettier, TypeScript strict mode                      |
+| CI/CD       | GitHub Actions → Vercel CLI (dev → approval → prod)           |
+| Hosting     | Vercel (site + API), Neon (Postgres). Free tiers, so $0/month |
 
 ## Project structure
 
@@ -29,7 +28,7 @@ A small full-stack web app for collecting recipes. It also works as a practice p
 │   ├── api/                 Express API
 │   │   ├── src/
 │   │   │   ├── app.ts       builds the Express app (routes, middleware)
-│   │   │   ├── index.ts     starts the server (local / Docker)
+│   │   │   ├── index.ts     starts the server (local)
 │   │   │   ├── vercel.ts    entry used on Vercel
 │   │   │   ├── env.ts       validated environment variables
 │   │   │   ├── db/          schema, client, migrate & seed scripts
@@ -46,23 +45,24 @@ A small full-stack web app for collecting recipes. It also works as a practice p
 ├── .github/workflows/       CI and deploy pipelines
 ├── api/index.js           Vercel serverless entry (wraps the Express app)
 ├── vercel.json            Vercel build, rewrites and region
-├── Dockerfile
-├── docker-compose.yml       local Postgres
+├── scripts/setup-local-db.sql  one-time local database setup
 └── docs/SETUP.md            step-by-step hosting setup
 ```
 
 ## Running it locally
 
-You need **Node 22+** and **Docker** (for the local database).
+You need **Node 22+** and **PostgreSQL 16+** installed locally (the installer from https://www.postgresql.org/download/ works on Windows and macOS).
 
 ```bash
 npm install                 # install everything (all workspaces)
 cp .env.example .env        # local config. Edit APP_PASSWORD if you like
-npm run db:up               # start Postgres in Docker
+psql -U postgres -f scripts/setup-local-db.sql   # once: creates the artweb login and databases
 npm run db:migrate          # create the tables
 npm run db:seed             # (optional) add two example recipes
 npm run dev                 # API on :3000 + web on :5173
 ```
+
+On Windows the PostgreSQL installer doesn't add `psql` to your PATH. Use the full path instead, e.g. `& "C:\Program Files\PostgreSQL\17\bin\psql.exe" -U postgres -f scripts/setup-local-db.sql` in PowerShell.
 
 Open http://localhost:5173 and log in with the `APP_PASSWORD` from your `.env`.
 
@@ -71,7 +71,7 @@ Open http://localhost:5173 and log in with the `APP_PASSWORD` from your `.env`.
 | Command               | What it does                                                     |
 | --------------------- | ---------------------------------------------------------------- |
 | `npm run dev`         | Run API and web in watch mode                                    |
-| `npm test`            | Run all tests (needs `npm run db:up` for the API tests)          |
+| `npm test`            | Run all tests (the API tests need the local database)            |
 | `npm run lint`        | ESLint                                                           |
 | `npm run format`      | Auto-format with Prettier                                        |
 | `npm run typecheck`   | TypeScript in all workspaces                                     |
@@ -83,7 +83,7 @@ Open http://localhost:5173 and log in with the `APP_PASSWORD` from your `.env`.
 
 1. Create a branch: `git switch -c feature/favourite-recipes`
 2. Make your change, and add or adjust tests.
-3. Push and open a pull request. **CI** runs lint, typecheck, tests, build and a Docker build.
+3. Push and open a pull request. **CI** runs a format check, lint, typecheck, tests and build.
 4. Merge into `main`. The **Deploy** pipeline then:
    1. runs CI again,
    2. runs DB migrations on **dev** and deploys to dev (a Vercel preview),

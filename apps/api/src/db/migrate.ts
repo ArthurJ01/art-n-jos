@@ -2,7 +2,7 @@
  * Applies any SQL migrations in ./drizzle that haven't run yet.
  *
  * - Locally:     npm run db:migrate
- * - In CI/CD:    docker run --rm -e DATABASE_URL=... <image> node apps/api/dist/db/migrate.js
+ * - In CI/CD:    the deploy workflow runs the same command with each environment's DATABASE_URL
  *
  * Drizzle records applied migrations in a `__drizzle_migrations` table, so running
  * this twice is safe.
