@@ -175,6 +175,7 @@ export function useAddMealPlanEntry() {
               kind: input.kind,
               recipeId: input.recipeId ?? null,
               recipeTitle,
+              title: input.title ?? null,
               isLeftover: input.isLeftover ?? false,
             },
           ],

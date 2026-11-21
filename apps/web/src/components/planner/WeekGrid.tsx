@@ -105,6 +105,7 @@ function EntryChip({ entry, canEdit, onMakeLeftover, onRemove }: ChipProps) {
 
   const classes = ['chip', 'entry'];
   if (entry.kind === 'eat_out') classes.push('chip-eat-out');
+  if (entry.kind === 'custom') classes.push('chip-custom');
   if (entry.isLeftover) classes.push('chip-leftover');
   if (editable) classes.push('entry-editable');
   if (isDragging) classes.push('entry-dragging');
@@ -129,7 +130,7 @@ function EntryChip({ entry, canEdit, onMakeLeftover, onRemove }: ChipProps) {
       </span>
       {editable && (
         <span className="entry-actions">
-          {entry.kind === 'recipe' && !entry.isLeftover && (
+          {entry.kind !== 'eat_out' && !entry.isLeftover && (
             <button
               type="button"
               className="entry-action"

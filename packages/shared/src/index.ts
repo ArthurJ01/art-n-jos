@@ -71,8 +71,9 @@ export type MealType = (typeof mealTypes)[number];
  * What a meal plan entry is:
  * - `recipe`: one of the saved recipes
  * - `eat_out`: eating out, so there is no recipe
+ * - `custom`: a meal without a recipe, named by hand ("Tacos hos mamma")
  */
-export const mealPlanKinds = ['recipe', 'eat_out'] as const;
+export const mealPlanKinds = ['recipe', 'eat_out', 'custom'] as const;
 export type MealPlanKind = (typeof mealPlanKinds)[number];
 
 /** A calendar day without a time, as "YYYY-MM-DD". */
@@ -84,6 +85,8 @@ export const mealPlanEntryInputSchema = z
     meal: z.enum(mealTypes),
     kind: z.enum(mealPlanKinds),
     recipeId: z.number().int().positive().nullable().optional(),
+    /** The name of a custom meal. Only custom meals have one. */
+    title: z.string().trim().min(1, 'Namn krävs').max(100).nullable().optional(),
     /** True when this is a lunch box ("matlåda") made from an earlier meal. */
     isLeftover: z.boolean().default(false),
   })
@@ -91,9 +94,13 @@ export const mealPlanEntryInputSchema = z
     path: ['recipeId'],
     message: 'recipeId krävs för recept och får inte anges annars',
   })
-  .refine((e) => !(e.isLeftover && e.kind !== 'recipe'), {
+  .refine((e) => (e.kind === 'custom') === (e.title != null), {
+    path: ['title'],
+    message: 'title krävs för egna måltider och får inte anges annars',
+  })
+  .refine((e) => !(e.isLeftover && e.kind === 'eat_out'), {
     path: ['isLeftover'],
-    message: 'Bara recept kan bli matlåda',
+    message: 'Äta ute kan inte bli matlåda',
   });
 export type MealPlanEntryInput = z.input<typeof mealPlanEntryInputSchema>;
 
@@ -125,6 +132,8 @@ export interface MealPlanEntry {
   recipeId: number | null;
   /** Title of the recipe, so the calendar doesn't need a second request. */
   recipeTitle: string | null;
+  /** Name of a custom meal; null for the other kinds. */
+  title: string | null;
   isLeftover: boolean;
 }
 

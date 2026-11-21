@@ -464,7 +464,7 @@ textarea.input {
   margin: -3px;
 }
 
-/* A chip is one recipe (or "Äta ute"), in the list and in the calendar. */
+/* A chip is one recipe (or "Äta ute", or a custom meal), in the list and in the calendar. */
 .chip {
   display: block;
   width: 100%;
@@ -490,6 +490,15 @@ textarea.input {
 .chip-eat-out {
   background: #2a2114;
   border-color: #4a3a20;
+}
+
+.chip-custom {
+  background: #16232e;
+  border-color: #27404f;
+}
+
+.chip-kicker {
+  color: var(--muted);
 }
 
 .chip-leftover {

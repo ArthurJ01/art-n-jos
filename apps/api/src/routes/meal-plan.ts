@@ -27,10 +27,11 @@ export function mealPlanRouter(db: Db) {
         kind: mealPlanEntries.kind,
         recipeId: mealPlanEntries.recipeId,
         recipeTitle: recipes.title,
+        title: mealPlanEntries.title,
         isLeftover: mealPlanEntries.isLeftover,
       })
       .from(mealPlanEntries)
-      // Left join: "eat out" entries have no recipe but should still be returned.
+      // Left join: "eat out" and custom entries have no recipe but should still be returned.
       .leftJoin(recipes, eq(mealPlanEntries.recipeId, recipes.id));
 
   async function getEntry(id: number): Promise<MealPlanEntry> {
@@ -67,6 +68,7 @@ export function mealPlanRouter(db: Db) {
         meal: data.meal,
         kind: data.kind,
         recipeId: data.recipeId ?? null,
+        title: data.title ?? null,
         isLeftover: data.isLeftover,
       })
       .returning({ id: mealPlanEntries.id });
