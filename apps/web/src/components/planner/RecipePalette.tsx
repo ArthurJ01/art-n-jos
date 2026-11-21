@@ -2,12 +2,14 @@ import { useState } from 'react';
 import { useDraggable } from '@dnd-kit/core';
 import type { Recipe } from '@art-web/shared';
 import {
-  CUSTOM_LABEL,
+  customItem as customItemFor,
   eatOutItem,
   paletteItemId,
+  recipeItems,
   type DragData,
   type PaletteItem,
 } from '../../lib/planner';
+import { PaletteItemLabel } from './PaletteItemLabel';
 
 interface Props {
   recipes: Recipe[] | undefined;
@@ -20,18 +22,9 @@ interface Props {
 /** The list of things that can be put into the calendar. */
 export function RecipePalette({ recipes, isPending, selected, onSelect }: Props) {
   const [search, setSearch] = useState('');
-  const needle = search.trim().toLowerCase();
-  const items: PaletteItem[] = (recipes ?? [])
-    .filter((r) => r.title.toLowerCase().includes(needle))
-    .map((r) => ({ kind: 'recipe', recipeId: r.id, title: r.title }));
-
-  // Whatever is typed in the search box can also be planned as a meal of its
-  // own, without a recipe ("Tacos hos mamma"). Hidden if a recipe has that name.
-  const customTitle = search.trim().replace(/\s+/g, ' ').slice(0, 100);
-  const customItem: PaletteItem | null =
-    customTitle && !items.some((i) => i.title.toLowerCase() === needle)
-      ? { kind: 'custom', title: customTitle }
-      : null;
+  const needle = search.trim();
+  const items = recipeItems(recipes, search);
+  const customItem = customItemFor(search, items);
 
   const selectedId = selected && paletteItemId(selected);
   const toggle = (item: PaletteItem) => onSelect(selectedId === paletteItemId(item) ? null : item);
@@ -41,7 +34,7 @@ export function RecipePalette({ recipes, isPending, selected, onSelect }: Props)
       <p className="palette-hint">
         {selected
           ? `Välj en ruta för ”${selected.title}”.`
-          : 'Dra till en dag, eller tryck på ett recept och sedan på en ruta. Skriv i rutan för en egen måltid.'}
+          : 'Dra till en dag, eller tryck på ett recept och sedan på en ruta. Dubbelklicka (eller håll inne) på en ruta för att skriva in en måltid direkt.'}
       </p>
       <input
         type="search"
@@ -113,13 +106,7 @@ function PaletteButton({
       // After the spread: dnd-kit's attributes include their own aria-pressed.
       aria-pressed={selected}
     >
-      {item.kind === 'custom' ? (
-        <>
-          <span className="chip-kicker">{CUSTOM_LABEL}:</span> {item.title}
-        </>
-      ) : (
-        item.title
-      )}
+      <PaletteItemLabel item={item} />
     </button>
   );
 }

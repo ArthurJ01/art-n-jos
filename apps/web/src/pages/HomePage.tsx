@@ -5,13 +5,11 @@ import { paths } from '../lib/paths';
 const areas = [
   {
     to: paths.recipes,
-    icon: '🍳',
     title: 'Recept',
     description: 'Bläddra bland, sök i och lägg till våra recept.',
   },
   {
     to: paths.mealPlanner,
-    icon: '📅',
     title: 'Matplanering',
     description: 'Planera veckans frukost, lunch och middag.',
   },
@@ -25,9 +23,6 @@ export function HomePage() {
       <div className="grid">
         {areas.map((area) => (
           <Link key={area.to} to={area.to} className="card area-card">
-            <span className="area-icon" aria-hidden="true">
-              {area.icon}
-            </span>
             <h2 className="card-title">{area.title}</h2>
             <p className="card-desc">{area.description}</p>
           </Link>
