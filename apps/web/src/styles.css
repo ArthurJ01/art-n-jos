@@ -642,7 +642,17 @@ textarea.input {
     background 0.1s;
 }
 
-/* The search box a double-click opens inside a slot. */
+/*
+ * Press and hold on a slot opens the search box, so stop phones from
+ * selecting the "Middag" label or showing their own long-press menu.
+ */
+.slot-editable {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* The search box a double-click (or press and hold) opens inside a slot. */
 .quick-add {
   position: absolute;
   z-index: 20;
@@ -658,6 +668,9 @@ textarea.input {
   border: 1px solid var(--border-strong);
   border-radius: var(--radius);
   box-shadow: 0 8px 24px var(--shadow);
+  /* Undo .slot-editable: Safari won't let you type in a box inside user-select: none. */
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 .quick-add-end {
@@ -668,6 +681,14 @@ textarea.input {
 .quick-add-input {
   padding: 0.4rem 0.6rem;
   font-size: 0.9rem;
+}
+
+/* iPhones zoom the page in when a text box under 16px gets focus. */
+@media (pointer: coarse) {
+  .quick-add-input,
+  .palette-search {
+    font-size: 1rem;
+  }
 }
 
 .quick-add-list {

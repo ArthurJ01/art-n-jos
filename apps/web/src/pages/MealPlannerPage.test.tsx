@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router';
@@ -65,6 +65,9 @@ function renderPage() {
     </QueryClientProvider>,
   );
 }
+
+/** Waits in real time, longer than a press-and-hold takes. */
+const holdFor = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -220,6 +223,60 @@ describe('MealPlannerPage', () => {
     await user.keyboard('Pizza{Escape}');
     expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
     expect(writes).toEqual([]);
+  });
+
+  it('opens the search box on press and hold with a finger', async () => {
+    const writes = fakeApi({ authenticated: true });
+    const user = userEvent.setup();
+    renderPage();
+
+    const wednesday = screen.getByRole('region', { name: /onsdag 18 nov/ });
+    const label = await within(wednesday).findByText('Middag');
+    const touch = { clientX: 10, clientY: 10 };
+    await user.pointer({ keys: '[TouchA>]', target: label, coords: touch });
+    await act(() => holdFor(600));
+    await user.pointer({ keys: '[/TouchA]', target: label, coords: touch });
+    // Phones only open the keyboard for focus() while the finger lifts.
+    fireEvent.touchEnd(label);
+
+    const box = screen.getByRole('combobox', {
+      name: 'Sök recept eller skriv en måltid för onsdag middag',
+    });
+    expect(box).toHaveFocus();
+    await user.keyboard('Pizza{Enter}');
+    expect(writes[0]?.body).toMatchObject({ date: '2026-11-18', meal: 'dinner', title: 'Pizza' });
+  });
+
+  it('does not open the search box for a short tap, a scroll or a mouse hold', async () => {
+    fakeApi({ authenticated: true });
+    const user = userEvent.setup();
+    renderPage();
+    const wednesday = screen.getByRole('region', { name: /onsdag 18 nov/ });
+    const label = await within(wednesday).findByText('Middag');
+
+    const isOpen = () => screen.queryByRole('combobox') !== null;
+
+    // A short tap.
+    await user.pointer({ keys: '[TouchA]', target: label });
+    await act(() => holdFor(600));
+    expect(isOpen()).toBe(false);
+
+    // A finger that moves (scrolling) before the time is up.
+    await user.pointer({ keys: '[TouchA>]', target: label, coords: { clientX: 10, clientY: 10 } });
+    await user.pointer({
+      pointerName: 'TouchA',
+      target: label,
+      coords: { clientX: 10, clientY: 60 },
+    });
+    await act(() => holdFor(600));
+    expect(isOpen()).toBe(false);
+    await user.pointer({ keys: '[/TouchA]', target: label });
+
+    // Holding the mouse button: mice have double-click instead.
+    await user.pointer({ keys: '[MouseLeft>]', target: label });
+    await act(() => holdFor(600));
+    expect(isOpen()).toBe(false);
+    await user.pointer({ keys: '[/MouseLeft]', target: label });
   });
 
   it('turns a planned recipe into a lunch box for the next day', async () => {

@@ -1,9 +1,10 @@
-import { useState, type MouseEvent } from 'react';
+import { useRef, useState, type MouseEvent } from 'react';
 import { Link } from 'react-router';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
 import { mealTypes, type MealPlanEntry, type Recipe } from '@art-web/shared';
 import { isSavedEntry } from '../../lib/api';
 import { formatDayMonth, formatWeekday } from '../../lib/dates';
+import { useLongPress } from '../../lib/useLongPress';
 import { paths } from '../../lib/paths';
 import {
   entryTitle,
@@ -93,21 +94,56 @@ function MealSlot({
   });
   const label = mealLabels[slot.meal];
 
-  // Double-clicks on an entry or a button belong to them, not to the slot.
+  const slotRef = useRef<HTMLDivElement | null>(null);
+  // Opened by press-and-hold: the text box is focused when the finger lifts
+  // instead of right away (see onTouchEnd).
+  const [openedByTouch, setOpenedByTouch] = useState(false);
+
+  // Clicks and touches on an entry or a button belong to them, not to the slot.
+  // (Holding an entry drags it.)
   const isOwnClick = (e: MouseEvent) =>
     !(e.target as Element).closest('.entry, .slot-add, .quick-add');
 
+  // On phones, press and hold instead of double-click.
+  const longPress = useLongPress({
+    shouldStart: (e) => canEdit && isOwnClick(e),
+    onLongPress: () => {
+      setOpenedByTouch(true);
+      onQuickAdd(true);
+      // A short buzz where supported (Android), like a native long-press.
+      navigator.vibrate?.(10);
+    },
+  });
+
+  const classes = ['slot'];
+  if (canEdit) classes.push('slot-editable');
+  if (isOver) classes.push('slot-over');
+
   return (
     <div
-      ref={setNodeRef}
-      className={isOver ? 'slot slot-over' : 'slot'}
+      ref={(node) => {
+        setNodeRef(node);
+        slotRef.current = node;
+      }}
+      className={classes.join(' ')}
       onMouseDown={(e) => {
         // The second click of a double-click would otherwise select the
         // "Middag" label as text.
         if (canEdit && e.detail > 1 && isOwnClick(e)) e.preventDefault();
       }}
       onDoubleClick={(e) => {
-        if (canEdit && isOwnClick(e)) onQuickAdd(true);
+        if (!canEdit || !isOwnClick(e)) return;
+        setOpenedByTouch(false);
+        onQuickAdd(true);
+      }}
+      {...longPress.handlers}
+      onTouchEnd={(e) => {
+        if (!longPress.takeLongPress()) return;
+        // Phones only open the keyboard for focus() during a touch, so focus
+        // the search box now, as the finger lifts. preventDefault stops the
+        // browser from turning the touch into a click afterwards.
+        e.preventDefault();
+        slotRef.current?.querySelector<HTMLInputElement>('.quick-add-input')?.focus();
       }}
     >
       <span className="slot-label">{label}</span>
@@ -129,6 +165,7 @@ function MealSlot({
           label={`${formatWeekday(slot.date)} ${label.toLowerCase()}`}
           recipes={recipes}
           alignEnd={alignEnd}
+          autoFocus={!openedByTouch}
           onPick={(item) => {
             onAdd(item, slot);
             onQuickAdd(false);

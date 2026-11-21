@@ -19,6 +19,8 @@ interface Props {
   recipes: Recipe[] | undefined;
   /** Open towards the left, for the last days of the week. */
   alignEnd: boolean;
+  /** Focus the text box as soon as it opens. Off when the slot focuses it itself (touch). */
+  autoFocus?: boolean;
   onPick: (item: PaletteItem) => void;
   onClose: () => void;
 }
@@ -30,7 +32,14 @@ interface Props {
  * It follows the ARIA "combobox" pattern: focus stays in the text box while
  * the arrow keys move a highlight through the list (aria-activedescendant).
  */
-export function SlotQuickAdd({ label, recipes, alignEnd, onPick, onClose }: Props) {
+export function SlotQuickAdd({
+  label,
+  recipes,
+  alignEnd,
+  autoFocus = true,
+  onPick,
+  onClose,
+}: Props) {
   const [search, setSearch] = useState('');
   const [highlight, setHighlight] = useState(0);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -83,7 +92,7 @@ export function SlotQuickAdd({ label, recipes, alignEnd, onPick, onClose }: Prop
     >
       <input
         // Opening the popup is asking to type, so the text box gets focus at once.
-        autoFocus
+        autoFocus={autoFocus}
         className="input quick-add-input"
         role="combobox"
         aria-label={`Sök recept eller skriv en måltid för ${label}`}
