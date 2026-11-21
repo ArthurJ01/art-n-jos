@@ -70,8 +70,8 @@ export function createApp({ env, db, logger }: AppDeps) {
   app.use('/api', api);
 
   // ---- Website (the built React app) ----
-  // In production one container serves both the API and the frontend.
-  // Locally, Vite's dev server serves the frontend instead.
+  // Optional: if STATIC_DIR is set, this server also serves the built frontend.
+  // On Vercel the CDN serves the frontend, and locally Vite's dev server does.
   if (env.STATIC_DIR && fs.existsSync(env.STATIC_DIR)) {
     const staticDir = path.resolve(env.STATIC_DIR);
     // Hashed asset files never change, so browsers can cache them for a long time.

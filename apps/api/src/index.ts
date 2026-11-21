@@ -20,7 +20,7 @@ const server = app.listen(env.PORT, () => {
   logger.info({ port: env.PORT, env: env.APP_ENV, version: env.APP_VERSION }, 'API listening');
 });
 
-// Shut down cleanly when the host stops the container (e.g. during a deploy).
+// Shut down cleanly when the process is stopped (e.g. Ctrl+C or a restart).
 for (const signal of ['SIGTERM', 'SIGINT'] as const) {
   process.on(signal, () => {
     logger.info({ signal }, 'Shutting down');
