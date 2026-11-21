@@ -2,7 +2,7 @@
 
 When you're done you'll have:
 
-- **GitHub**: your code, CI, and the deploy pipeline, with an approval step before prod
+- **GitHub**: your code, CI, and the deploy pipeline: the `dev` branch deploys the dev site and `main` deploys prod
 - **Neon**: managed Postgres with a `production` branch and a `dev` branch
 - **Vercel**: hosts the React site on its global network and runs the API as serverless functions in Frankfurt
 - **jos-n-art.com** (optional): your own domain
@@ -77,12 +77,13 @@ Then **Settings → Environments**:
 
 ### `dev`
 
+- **Deployment branches**: _Selected branches_ → `dev`
 - Secret `DATABASE_URL`: dev-**direct** string
 - Variable `APP_URL`: `https://art-n-jos-dev.vercel.app` (or `https://dev.jos-n-art.com` once the domain is set up)
 
 ### `production`
 
-- ✅ **Required reviewers**: add yourself. This is the "approve before prod" button.
+- _Optional_ **Required reviewers**: add yourself to get an extra "approve before prod" button. Merging the `dev` → `main` release pull request is already the decision to ship, so you can leave this off.
 - **Deployment branches**: _Selected branches_ → `main`
 - Secret `DATABASE_URL`: prod-**direct** string
 - Variable `APP_URL`: the prod address Vercel shows on the project page, e.g. `https://art-n-jos.vercel.app` (or `https://jos-n-art.com` later)
@@ -91,8 +92,8 @@ Then **Settings → Environments**:
 
 1. **Settings → Secrets and variables → Actions → Variables → New repository variable**
    - Name: `DEPLOY_ENABLED`, value: `true`
-2. **Actions → Deploy → Run workflow**.
-3. Watch it run: CI → **Deploy to dev**. When it pauses at **Deploy to prod**, open the dev URL and check that it works. Dev sits behind Vercel login, so you'll be asked to log in. Then click **Review deployments → Approve**.
+2. **Actions → Deploy → Run workflow**, pick the `dev` branch, and run it. Watch CI → **Deploy to dev**, then open the dev URL and check that it works. Dev sits behind Vercel login, so you'll be asked to log in.
+3. Run the workflow again on the `main` branch to deploy prod. (If you turned on required reviewers, click **Review deployments → Approve** when it pauses.)
 
 🎉 You're live.
 
@@ -106,14 +107,20 @@ Then **Settings → Environments**:
 3. Vercel shows the DNS records to create (an `A` record for the root and `CNAME` records for `www` and `dev`). Add them in Cloudflare's DNS tab and set them to **DNS only** (grey cloud). Vercel issues the HTTPS certificates automatically.
 4. Update the GitHub environment variables: `APP_URL` = `https://dev.jos-n-art.com` (dev) and `https://jos-n-art.com` (production).
 
-## 7. Protect `main` (recommended)
+## 7. Branches: `dev` and `main`
 
-**Settings → Rules → Rulesets → New branch ruleset**
+Every change goes into `dev` first (deploys the dev site), and `main` only takes pull requests from `dev` (deploys prod).
 
-- Target: default branch
-- ✅ Require a pull request before merging
-- ✅ Require status checks to pass: add `Lint, typecheck, test, build`
-- ✅ Block force pushes
+1. Create `dev` from `main`, either on GitHub (the branch dropdown → type `dev` → **Create branch**) or locally: `git switch main && git pull && git switch -c dev && git push -u origin dev`.
+2. **Settings → General → Default branch** → `dev`, so new pull requests and clones start from it.
+3. **Settings → General → Pull Requests**: keep **Allow merge commits** on (releases use it). Squash merging can stay on for feature pull requests.
+4. **Settings → Rules → Rulesets → New branch ruleset**, named `dev`:
+   - Target: include by name → `dev`
+   - ✅ Require a pull request before merging
+   - ✅ Require status checks to pass: add `Lint, typecheck, test, build`
+   - ✅ Block force pushes
+   - ✅ Restrict deletions
+5. A second ruleset named `main`, the same as above but targeting `main`, and with both `Lint, typecheck, test, build` and `PRs to main come from dev` as required status checks. GitHub only offers a check in that list after it has run once, so open a test `dev` → `main` pull request first if it's missing.
 
 ---
 

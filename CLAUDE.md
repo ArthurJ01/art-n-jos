@@ -60,11 +60,19 @@ CI runs exactly these checks, so run them before saying something works.
 
 ## Deploy pipeline
 
-`main` is protected by process: work on a branch, open a PR (CI runs), and merge. Merging runs `.github/workflows/deploy.yml`:
+Two long-lived branches, each deploying its own environment. `dev` is the default branch.
+
+- Feature branches → PR into **`dev`** (CI runs) → merge. A push to `dev` runs `.github/workflows/deploy.yml`: CI, then **Deploy to dev**.
+- Release: PR from **`dev` into `main`**, merged with a **merge commit** (never squash, or the branches drift apart). A push to `main` runs CI, then **Deploy to prod**.
+- `release-source.yml` fails any PR into `main` whose head isn't this repo's `dev` branch ("PRs to main come from dev", a required check).
+
+Deploy jobs (`deploy-env.yml`):
 
 1. CI (`ci.yml`): format, lint, typecheck, tests with a Postgres service, build.
-2. **Deploy to dev** (`deploy-env.yml`): migrate the Neon `dev` branch, run `vercel build` and `vercel deploy --prebuilt`, then point `art-n-jos-dev.vercel.app` at the new deployment via the Vercel REST API.
-3. **Deploy to prod**: waits for Arthur's approval in GitHub Environments. Then migrate the Neon `production` branch, run `vercel deploy --prebuilt --prod`, and smoke-test `/api/health`.
+2. **Deploy to dev**: migrate the Neon `dev` branch, run `vercel build` and `vercel deploy --prebuilt`, then point `art-n-jos-dev.vercel.app` at the new deployment via the Vercel REST API.
+3. **Deploy to prod**: migrate the Neon `production` branch, run `vercel deploy --prebuilt --prod`, and smoke-test `/api/health`. Merging the release PR is the go-ahead; the `production` environment's required-reviewer approval is optional.
+
+Each branch has its own deploy queue (`concurrency: deploy-<branch>`), so a prod release never blocks dev.
 
 Vercel's own git auto-deploy is **off** (`git.deploymentEnabled: false`). Only GitHub Actions deploys.
 
@@ -85,6 +93,6 @@ Vercel's own git auto-deploy is **off** (`git.deploymentEnabled: false`). Only G
 - **`vercel alias set` fails with team-scoped tokens** ("User not found"), even with `--scope`. That's why the dev alias step uses the REST API.
 - **Vercel import:** the monorepo auto-detect suggests "Services". The project uses the **Other** preset, and `vercel.json` drives the build.
 - **Pooled vs direct DB URL:** the runtime on Vercel uses the pooled URL; migrations in CI use the direct one.
-- **Dependabot:** don't merge TypeScript or @types/node major bumps without checking the tooling. Keep @types/node on 22.x.
+- **Dependabot:** PRs target `dev`. Don't merge TypeScript or @types/node major bumps without checking the tooling. Keep @types/node on 22.x.
 - **Local database:** a natively installed Postgres (16+), set up once with `scripts/setup-local-db.sql`. CI gets its own throwaway Postgres through the `services:` block in `ci.yml`.
 - **Planned domain:** jos-n-art.com, not bought yet. See `docs/SETUP.md` step 6.
