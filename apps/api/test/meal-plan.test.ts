@@ -50,6 +50,7 @@ describe('meal plan', () => {
       kind: 'recipe',
       recipeId,
       recipeTitle: 'Lasagne',
+      title: null,
       isLeftover: false,
     });
 
@@ -76,6 +77,32 @@ describe('meal plan', () => {
     expect(list.body).toMatchObject([
       { kind: 'recipe', isLeftover: true },
       { kind: 'eat_out', recipeId: null, recipeTitle: null },
+    ]);
+  });
+
+  it('plans a custom meal without a recipe, and its lunch box', async () => {
+    const agent = await loggedInAgent();
+    const created = await agent
+      .post('/api/meal-plan')
+      .send({ date: '2026-11-19', meal: 'dinner', kind: 'custom', title: '  Tacos hos mamma ' })
+      .expect(201);
+    expect(created.body).toMatchObject({
+      kind: 'custom',
+      recipeId: null,
+      recipeTitle: null,
+      title: 'Tacos hos mamma',
+      isLeftover: false,
+    });
+
+    await agent
+      .post('/api/meal-plan')
+      .send({ date: '2026-11-20', meal: 'lunch', kind: 'custom', title: 'Tacos', isLeftover: true })
+      .expect(201);
+
+    const list = await request(app).get(week).expect(200);
+    expect(list.body).toMatchObject([
+      { kind: 'custom', title: 'Tacos hos mamma' },
+      { kind: 'custom', title: 'Tacos', isLeftover: true },
     ]);
   });
 
@@ -137,6 +164,23 @@ describe('meal plan', () => {
     await agent
       .post('/api/meal-plan')
       .send({ ...base, kind: 'eat_out', isLeftover: true })
+      .expect(400);
+    // A custom meal needs a name, and only custom meals have one.
+    await agent
+      .post('/api/meal-plan')
+      .send({ ...base, kind: 'custom' })
+      .expect(400);
+    await agent
+      .post('/api/meal-plan')
+      .send({ ...base, kind: 'custom', title: '   ' })
+      .expect(400);
+    await agent
+      .post('/api/meal-plan')
+      .send({ ...base, kind: 'custom', title: 'x'.repeat(101) })
+      .expect(400);
+    await agent
+      .post('/api/meal-plan')
+      .send({ ...base, kind: 'eat_out', title: 'Pizza' })
       .expect(400);
     await agent
       .post('/api/meal-plan')

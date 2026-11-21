@@ -64,7 +64,7 @@ Two long-lived branches, each deploying its own environment. `dev` is the defaul
 
 - Feature branches → PR into **`dev`** (CI runs) → merge. A push to `dev` runs `.github/workflows/deploy.yml`: CI, then **Deploy to dev**.
 - Release: PR from **`dev` into `main`**, merged with a **merge commit** (never squash, or the branches drift apart). A push to `main` runs CI, then **Deploy to prod**.
-- `release-source.yml` fails any PR into `main` whose head isn't this repo's `dev` branch ("PRs to main come from dev", a required check).
+- The first job in `ci.yml` ("PRs to main come from dev", a required check) fails any PR into `main` whose head isn't this repo's `dev` branch. The test job waits for it, so a wrong-source PR fails in seconds without running the tests. It passes on PRs into `dev`, because a skipped required check counts as passed.
 
 Deploy jobs (`deploy-env.yml`):
 

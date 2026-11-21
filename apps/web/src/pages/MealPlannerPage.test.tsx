@@ -14,6 +14,7 @@ const planned: MealPlanEntry = {
   kind: 'recipe',
   recipeId: 3,
   recipeTitle: 'Lasagne',
+  title: null,
   isLeftover: false,
 };
 
@@ -106,6 +107,47 @@ describe('MealPlannerPage', () => {
         },
       },
     ]);
+  });
+
+  it('plans a custom meal typed into the search box', async () => {
+    const writes = fakeApi({ authenticated: true });
+    const user = userEvent.setup();
+    renderPage();
+
+    const palette = await screen.findByLabelText('Recept att planera');
+    await user.type(within(palette).getByRole('searchbox'), '  Tacos   hos mamma ');
+    await user.click(within(palette).getByRole('button', { name: 'Egen måltid: Tacos hos mamma' }));
+    await user.click(
+      screen.getByRole('button', { name: 'Lägg till Tacos hos mamma: fredag middag' }),
+    );
+
+    expect(writes).toEqual([
+      {
+        method: 'POST',
+        path: '/meal-plan',
+        body: {
+          date: '2026-11-20',
+          meal: 'dinner',
+          kind: 'custom',
+          title: 'Tacos hos mamma',
+          isLeftover: false,
+        },
+      },
+    ]);
+    const friday = screen.getByRole('region', { name: /fredag 20 nov/ });
+    expect(await within(friday).findByText('Tacos hos mamma')).toBeInTheDocument();
+  });
+
+  it('does not offer a custom meal named like an existing recipe', async () => {
+    fakeApi({ authenticated: true });
+    const user = userEvent.setup();
+    renderPage();
+
+    const palette = await screen.findByLabelText('Recept att planera');
+    await within(palette).findByRole('button', { name: 'Lasagne' });
+    await user.type(within(palette).getByRole('searchbox'), 'lasagne');
+    expect(within(palette).getByRole('button', { name: 'Lasagne' })).toBeInTheDocument();
+    expect(within(palette).queryByRole('button', { name: /Egen måltid/ })).not.toBeInTheDocument();
   });
 
   it('turns a planned recipe into a lunch box for the next day', async () => {

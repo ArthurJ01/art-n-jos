@@ -1,24 +1,68 @@
-/* Dark, minimal theme. Colors live in variables so they're easy to tweak. */
+/*
+ * Two themes that follow the device's light/dark setting:
+ * - light, "Kitchen notebook": cream paper with terracotta
+ * - dark, "Candlelight": warm brown with amber
+ * Every color lives in a variable here, so the rest of the file never needs a
+ * hex value and works in both themes.
+ */
 :root {
-  --bg: #0f1013;
-  --surface: #16181d;
-  --surface-2: #1d2027;
-  --border: #2a2e37;
-  --text: #e6e7ea;
-  --muted: #8b909c;
-  --accent: #e8a15c;
-  --accent-text: #1a1206;
-  --danger: #e5675f;
+  --bg: #f6f0e4;
+  --surface: #fffaf1;
+  --surface-2: #f1e8d8;
+  --surface-hover: #ebe0cc;
+  --border: #e2d6c1;
+  --border-strong: #cdbda3;
+  --text: #2b2520;
+  --muted: #6f6255;
+  --accent: #a84a2a;
+  --accent-hover: #8f3d20;
+  --accent-text: #fff8ef;
+  /* A pale wash of the accent: the env badge, tags, a slot being dropped on. */
+  --accent-soft: #f3e1d3;
+  --accent-soft-text: #8a3b1f;
+  --danger: #b3261e;
+  --eat-out-bg: #f3ead0;
+  --eat-out-border: #dccb94;
+  --custom-bg: #e3ecec;
+  --custom-border: #b9cfcf;
+  --shadow: rgb(60 40 20 / 0.18);
+
   --radius: 10px;
   --font: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  /* Headings. Bundled from npm (@fontsource-variable/fraunces), not Google Fonts. */
+  --font-display: 'Fraunces Variable', Georgia, 'Times New Roman', serif;
 
-  color-scheme: dark;
+  color-scheme: light dark;
   font-family: var(--font);
   font-size: 16px;
   line-height: 1.55;
   color: var(--text);
   background: var(--bg);
   -webkit-font-smoothing: antialiased;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1a1512;
+    --surface: #241d18;
+    --surface-2: #2e251f;
+    --surface-hover: #372d25;
+    --border: #3a2f27;
+    --border-strong: #4d3f34;
+    --text: #efe4d6;
+    --muted: #a8988a;
+    --accent: #e0a458;
+    --accent-hover: #ebb877;
+    --accent-text: #24170a;
+    --accent-soft: #3a2c1c;
+    --accent-soft-text: #f0c88f;
+    --danger: #e5786b;
+    --eat-out-bg: #2f2a1b;
+    --eat-out-border: #50472a;
+    --custom-bg: #1d2629;
+    --custom-border: #34474d;
+    --shadow: rgb(0 0 0 / 0.5);
+  }
 }
 
 *,
@@ -43,7 +87,9 @@ h2 {
 }
 
 h1 {
-  font-size: 2rem;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 2.1rem;
   margin: 0 0 0.5rem;
 }
 
@@ -74,8 +120,9 @@ h2 {
 
 .brand {
   color: var(--text);
-  font-weight: 700;
-  font-size: 1.15rem;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1.25rem;
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -88,8 +135,11 @@ h2 {
   letter-spacing: 0.08em;
   padding: 0.1rem 0.45rem;
   border-radius: 999px;
-  background: #3b2a12;
-  color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-soft-text);
+  /* Not the serif of the site name it sits next to. */
+  font-family: var(--font);
+  font-weight: 600;
 }
 
 .header-left {
@@ -158,8 +208,8 @@ h2 {
 }
 
 .button:hover {
-  border-color: #3a3f4b;
-  background: #232731;
+  border-color: var(--border-strong);
+  background: var(--surface-hover);
 }
 
 .button:disabled {
@@ -175,8 +225,8 @@ h2 {
 }
 
 .button-primary:hover {
-  background: #f0b273;
-  border-color: #f0b273;
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
 }
 
 .button-ghost {
@@ -243,7 +293,9 @@ textarea.input {
 }
 
 .card-title {
-  font-size: 1.1rem;
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  font-weight: 600;
   text-transform: none;
   letter-spacing: 0;
   color: var(--text);
@@ -269,9 +321,9 @@ textarea.input {
   font-size: 0.78rem;
   padding: 0.1rem 0.55rem;
   border-radius: 999px;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  color: var(--muted);
+  background: var(--accent-soft);
+  border: 1px solid transparent;
+  color: var(--accent-soft-text);
   font-family: inherit;
 }
 
@@ -464,7 +516,7 @@ textarea.input {
   margin: -3px;
 }
 
-/* A chip is one recipe (or "Äta ute"), in the list and in the calendar. */
+/* A chip is one recipe (or "Äta ute", or a custom meal), in the list and in the calendar. */
 .chip {
   display: block;
   width: 100%;
@@ -488,8 +540,17 @@ textarea.input {
 }
 
 .chip-eat-out {
-  background: #2a2114;
-  border-color: #4a3a20;
+  background: var(--eat-out-bg);
+  border-color: var(--eat-out-border);
+}
+
+.chip-custom {
+  background: var(--custom-bg);
+  border-color: var(--custom-border);
+}
+
+.chip-kicker {
+  color: var(--muted);
 }
 
 .chip-leftover {
@@ -505,7 +566,7 @@ textarea.input {
   width: max-content;
   max-width: 220px;
   border-color: var(--accent);
-  box-shadow: 0 8px 24px rgb(0 0 0 / 0.5);
+  box-shadow: 0 8px 24px var(--shadow);
   cursor: grabbing;
 }
 
@@ -517,7 +578,7 @@ textarea.input {
 }
 
 .palette-item:hover {
-  border-color: #3a3f4b;
+  border-color: var(--border-strong);
 }
 
 /*
@@ -581,7 +642,7 @@ textarea.input {
 
 .slot-over {
   border-color: var(--accent);
-  background: #221b12;
+  background: var(--accent-soft);
 }
 
 .slot-label {
@@ -603,7 +664,7 @@ textarea.input {
 }
 
 .slot-add:hover {
-  background: #221b12;
+  background: var(--accent-soft);
 }
 
 .entry {

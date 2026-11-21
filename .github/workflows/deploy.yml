@@ -4,8 +4,8 @@
 #   push to main  ->  CI  ->  deploy to prod
 #
 # Feature branches merge into dev. When dev looks good on the dev site, a
-# dev -> main pull request ("release") ships it to prod. release-source.yml
-# makes sure main only receives pull requests from dev.
+# dev -> main pull request ("release") ships it to prod. The first job in
+# ci.yml makes sure main only receives pull requests from dev.
 #
 # Each deploy migrates that environment's database first, then builds the app
 # with the Vercel CLI and uploads it. Vercel's own "deploy on every push" is
