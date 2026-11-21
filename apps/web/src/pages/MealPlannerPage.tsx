@@ -32,7 +32,15 @@ import {
   weekDays,
 } from '../lib/dates';
 import { paths } from '../lib/paths';
-import { dragTitle, mealLabels, type DragData, type PaletteItem, type Slot } from '../lib/planner';
+import {
+  dragTitle,
+  entryItem,
+  itemFields,
+  mealLabels,
+  type DragData,
+  type PaletteItem,
+  type Slot,
+} from '../lib/planner';
 import { RecipePalette } from '../components/planner/RecipePalette';
 import { WeekGrid } from '../components/planner/WeekGrid';
 
@@ -99,12 +107,7 @@ export function MealPlannerPage() {
 
   const addItem = (item: PaletteItem, slot: Slot, isLeftover = false) =>
     add.mutate({
-      input: {
-        ...slot,
-        kind: item.kind,
-        recipeId: item.kind === 'recipe' ? item.recipeId : null,
-        isLeftover,
-      },
+      input: { ...slot, ...itemFields(item), isLeftover },
       recipeTitle: item.kind === 'recipe' ? item.title : null,
     });
 
@@ -125,15 +128,11 @@ export function MealPlannerPage() {
     }
   };
 
-  /** A lunch box: the same recipe again, for lunch the day after. */
+  /** A lunch box: the same meal again, for lunch the day after. */
   const onMakeLeftover = (entry: MealPlanEntry) => {
-    if (entry.recipeId == null) return;
+    if (entry.kind === 'eat_out') return;
     const date = addDays(entry.date, 1);
-    addItem(
-      { kind: 'recipe', recipeId: entry.recipeId, title: entry.recipeTitle ?? '' },
-      { date, meal: 'lunch' },
-      true,
-    );
+    addItem(entryItem(entry), { date, meal: 'lunch' }, true);
     // Sunday's lunch box lands on next week's Monday: go there so it is visible.
     if (date > sunday) goToWeek(date);
   };
@@ -207,6 +206,8 @@ export function MealPlannerPage() {
             canEdit={canEdit}
             selected={canEdit ? selected : null}
             onPlaceSelected={(slot) => selected && addItem(selected, slot)}
+            recipes={recipes.data}
+            onAdd={(item, slot) => addItem(item, slot)}
             onMakeLeftover={onMakeLeftover}
             onRemove={(entry) => remove.mutate(entry.id)}
           />

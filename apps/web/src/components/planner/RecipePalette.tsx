@@ -1,7 +1,15 @@
 import { useState } from 'react';
 import { useDraggable } from '@dnd-kit/core';
 import type { Recipe } from '@art-web/shared';
-import { eatOutItem, paletteItemId, type DragData, type PaletteItem } from '../../lib/planner';
+import {
+  customItem as customItemFor,
+  eatOutItem,
+  paletteItemId,
+  recipeItems,
+  type DragData,
+  type PaletteItem,
+} from '../../lib/planner';
+import { PaletteItemLabel } from './PaletteItemLabel';
 
 interface Props {
   recipes: Recipe[] | undefined;
@@ -14,10 +22,9 @@ interface Props {
 /** The list of things that can be put into the calendar. */
 export function RecipePalette({ recipes, isPending, selected, onSelect }: Props) {
   const [search, setSearch] = useState('');
-  const needle = search.trim().toLowerCase();
-  const items: PaletteItem[] = (recipes ?? [])
-    .filter((r) => r.title.toLowerCase().includes(needle))
-    .map((r) => ({ kind: 'recipe', recipeId: r.id, title: r.title }));
+  const needle = search.trim();
+  const items = recipeItems(recipes, search);
+  const customItem = customItemFor(search, items);
 
   const selectedId = selected && paletteItemId(selected);
   const toggle = (item: PaletteItem) => onSelect(selectedId === paletteItemId(item) ? null : item);
@@ -27,17 +34,24 @@ export function RecipePalette({ recipes, isPending, selected, onSelect }: Props)
       <p className="palette-hint">
         {selected
           ? `Välj en ruta för ”${selected.title}”.`
-          : 'Dra till en dag, eller tryck på ett recept och sedan på en ruta.'}
+          : 'Dra till en dag, eller tryck på ett recept och sedan på en ruta. Dubbelklicka (eller håll inne) på en ruta för att skriva in en måltid direkt.'}
       </p>
       <input
         type="search"
         className="input palette-search"
-        placeholder="Sök recept…"
-        aria-label="Sök recept"
+        placeholder="Sök recept eller skriv en egen måltid…"
+        aria-label="Sök recept eller skriv en egen måltid"
         value={search}
         onChange={(e) => setSearch(e.target.value)}
       />
       <div className="palette-list">
+        {customItem && (
+          <PaletteButton
+            item={customItem}
+            selected={selectedId === paletteItemId(customItem)}
+            onClick={() => toggle(customItem)}
+          />
+        )}
         <PaletteButton
           item={eatOutItem}
           selected={selectedId === 'eat_out'}
@@ -78,6 +92,7 @@ function PaletteButton({
 
   const classes = ['chip', 'palette-item'];
   if (item.kind === 'eat_out') classes.push('chip-eat-out');
+  if (item.kind === 'custom') classes.push('chip-custom');
   if (selected) classes.push('chip-selected');
 
   return (
@@ -91,7 +106,7 @@ function PaletteButton({
       // After the spread: dnd-kit's attributes include their own aria-pressed.
       aria-pressed={selected}
     >
-      {item.title}
+      <PaletteItemLabel item={item} />
     </button>
   );
 }

@@ -62,6 +62,8 @@ export const mealPlanEntries = pgTable(
     kind: text('kind').$type<MealPlanKind>().notNull(),
     // Deleting a recipe also removes it from the plan.
     recipeId: integer('recipe_id').references(() => recipes.id, { onDelete: 'cascade' }),
+    // The name of a custom meal (kind 'custom'), which has no recipe.
+    title: text('title'),
     isLeftover: boolean('is_leftover').notNull().default(false),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
@@ -70,10 +72,11 @@ export const mealPlanEntries = pgTable(
     // The API validates these too; the checks make sure the data stays sane
     // even if something else writes to the table.
     check('meal_plan_entries_meal_check', sql`${t.meal} in ('breakfast', 'lunch', 'dinner')`),
-    check('meal_plan_entries_kind_check', sql`${t.kind} in ('recipe', 'eat_out')`),
+    check('meal_plan_entries_kind_check', sql`${t.kind} in ('recipe', 'eat_out', 'custom')`),
     check(
       'meal_plan_entries_recipe_check',
       sql`(${t.kind} = 'recipe') = (${t.recipeId} is not null)`,
     ),
+    check('meal_plan_entries_title_check', sql`(${t.kind} = 'custom') = (${t.title} is not null)`),
   ],
 );
