@@ -83,6 +83,10 @@ describe('MealPlannerPage', () => {
     expect(await screen.findByText(/för att ändra planeringen/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Ta bort Lasagne' })).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Recept att planera')).not.toBeInTheDocument();
+
+    // Double-clicking a slot does nothing for visitors.
+    await userEvent.setup().dblClick(within(tuesday).getByText('Frukost'));
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
   });
 
   it('places a recipe by clicking it and then a slot', async () => {
@@ -148,6 +152,74 @@ describe('MealPlannerPage', () => {
     await user.type(within(palette).getByRole('searchbox'), 'lasagne');
     expect(within(palette).getByRole('button', { name: 'Lasagne' })).toBeInTheDocument();
     expect(within(palette).queryByRole('button', { name: /Egen måltid/ })).not.toBeInTheDocument();
+  });
+
+  it('adds a meal typed into a slot after double-clicking it', async () => {
+    const writes = fakeApi({ authenticated: true });
+    const user = userEvent.setup();
+    renderPage();
+
+    const thursday = screen.getByRole('region', { name: /torsdag 19 nov/ });
+    await user.dblClick(await within(thursday).findByText('Middag'));
+    const box = screen.getByRole('combobox', {
+      name: 'Sök recept eller skriv en måltid för torsdag middag',
+    });
+    expect(box).toHaveFocus();
+
+    await user.keyboard('Pizza{Enter}');
+    expect(writes).toEqual([
+      {
+        method: 'POST',
+        path: '/meal-plan',
+        body: {
+          date: '2026-11-19',
+          meal: 'dinner',
+          kind: 'custom',
+          title: 'Pizza',
+          isLeftover: false,
+        },
+      },
+    ]);
+    // The search box closes once something is picked.
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+  });
+
+  it('picks a recipe from the double-click search with the arrow keys', async () => {
+    const writes = fakeApi({ authenticated: true });
+    const user = userEvent.setup();
+    renderPage();
+    // Wait for the recipes to load.
+    await within(await screen.findByLabelText('Recept att planera')).findByRole('button', {
+      name: 'Lasagne',
+    });
+
+    const monday = screen.getByRole('region', { name: /måndag 16 nov/ });
+    await user.dblClick(within(monday).getByText('Frukost'));
+    await user.keyboard('las');
+    // "Lasagne" first, then "Egen måltid: las"; move down and back up again.
+    const options = screen.getAllByRole('option');
+    expect(options.map((o) => o.textContent)).toEqual(['Lasagne', 'Egen måltid: las']);
+    await user.keyboard('{ArrowDown}{ArrowUp}{Enter}');
+
+    expect(writes[0]?.body).toEqual({
+      date: '2026-11-16',
+      meal: 'breakfast',
+      kind: 'recipe',
+      recipeId: 3,
+      isLeftover: false,
+    });
+  });
+
+  it('closes the double-click search with Escape without adding anything', async () => {
+    const writes = fakeApi({ authenticated: true });
+    const user = userEvent.setup();
+    renderPage();
+
+    const monday = screen.getByRole('region', { name: /måndag 16 nov/ });
+    await user.dblClick(await within(monday).findByText('Lunch'));
+    await user.keyboard('Pizza{Escape}');
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+    expect(writes).toEqual([]);
   });
 
   it('turns a planned recipe into a lunch box for the next day', async () => {

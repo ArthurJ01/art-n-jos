@@ -631,6 +631,8 @@ textarea.input {
   flex-direction: column;
   gap: 0.3rem;
   min-height: 6rem;
+  /* The double-click search box is positioned against the slot. */
+  position: relative;
   padding: 0.4rem;
   background: var(--surface);
   border: 1px solid var(--border);
@@ -638,6 +640,49 @@ textarea.input {
   transition:
     border-color 0.1s,
     background 0.1s;
+}
+
+/* The search box a double-click opens inside a slot. */
+.quick-add {
+  position: absolute;
+  z-index: 20;
+  top: 1.5rem;
+  left: 0.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  width: 15rem;
+  max-width: calc(100vw - 2rem);
+  padding: 0.5rem;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px var(--shadow);
+}
+
+.quick-add-end {
+  left: auto;
+  right: 0.25rem;
+}
+
+.quick-add-input {
+  padding: 0.4rem 0.6rem;
+  font-size: 0.9rem;
+}
+
+.quick-add-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  max-height: 16rem;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.quick-add-option {
+  cursor: pointer;
 }
 
 .slot-over {

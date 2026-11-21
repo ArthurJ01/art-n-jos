@@ -1,5 +1,5 @@
 /** Types and labels shared by the meal planner components. */
-import type { MealPlanEntry, MealType } from '@art-web/shared';
+import type { MealPlanEntry, MealType, Recipe } from '@art-web/shared';
 
 export const mealLabels: Record<MealType, string> = {
   breakfast: 'Frukost',
@@ -19,6 +19,26 @@ export type PaletteItem =
   | { kind: 'custom'; title: string };
 
 export const eatOutItem: PaletteItem = { kind: 'eat_out', title: EAT_OUT_LABEL };
+
+/** The recipes whose title contains the search text, as palette items. */
+export function recipeItems(recipes: Recipe[] | undefined, search: string): PaletteItem[] {
+  const needle = search.trim().toLowerCase();
+  return (recipes ?? [])
+    .filter((r) => r.title.toLowerCase().includes(needle))
+    .map((r) => ({ kind: 'recipe', recipeId: r.id, title: r.title }));
+}
+
+/**
+ * Whatever is typed can also be planned as a meal of its own, without a
+ * recipe ("Tacos hos mamma"). Null when nothing is typed, or when a recipe
+ * already has exactly that name.
+ */
+export function customItem(search: string, recipes: PaletteItem[]): PaletteItem | null {
+  const title = search.trim().replace(/\s+/g, ' ').slice(0, 100);
+  if (!title) return null;
+  const lower = title.toLowerCase();
+  return recipes.some((r) => r.title.toLowerCase() === lower) ? null : { kind: 'custom', title };
+}
 
 /** A stable id for a palette item (used as React key and drag id). */
 export function paletteItemId(item: PaletteItem): string {

@@ -206,6 +206,8 @@ export function MealPlannerPage() {
             canEdit={canEdit}
             selected={canEdit ? selected : null}
             onPlaceSelected={(slot) => selected && addItem(selected, slot)}
+            recipes={recipes.data}
+            onAdd={(item, slot) => addItem(item, slot)}
             onMakeLeftover={onMakeLeftover}
             onRemove={(entry) => remove.mutate(entry.id)}
           />
