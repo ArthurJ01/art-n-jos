@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider } from 'react-router';
 import { router } from './router';
+import '@fontsource-variable/fraunces';
 import './styles.css';
 
 const queryClient = new QueryClient({
