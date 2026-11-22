@@ -31,11 +31,13 @@ export function RecipePalette({ recipes, isPending, selected, onSelect }: Props)
 
   return (
     <aside className="palette" aria-label="Recept att planera">
-      <p className="palette-hint">
-        {selected
-          ? `Välj en ruta för ”${selected.title}”.`
-          : 'Dra till en dag, eller tryck på ett recept och sedan på en ruta. Dubbelklicka (eller håll inne) på en ruta för att skriva in en måltid direkt. Dubbelklicka på en måltid, eller tryck på ✎, för att ändra den.'}
-      </p>
+      {/* No instructions here: the list is the search box and the recipes. The
+          one thing worth saying is what a click on a recipe is waiting for. */}
+      {selected && (
+        <p className="palette-hint" role="status">
+          Välj en ruta för ”{selected.title}”.
+        </p>
+      )}
       <input
         type="search"
         className="input palette-search"
