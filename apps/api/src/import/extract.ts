@@ -5,8 +5,10 @@
  * and once in a form made for programs, a
  * `<script type="application/ld+json">` block that follows
  * https://schema.org/Recipe (it is what gives them recipe cards in Google).
- * That block is what we read, so one piece of code works for Arla, ICA,
- * Köket and most other sites, without knowing what any of them look like.
+ * That block is what we read, so one piece of code works for Arla, ICA and
+ * most other sites, without knowing what any of them look like. The one
+ * thing it lacks is the grouping of the ingredients ("Sås:"), which
+ * groups.ts reads from the visible page instead.
  *
  * Everything in here is plain text handling with no network access, which
  * makes it easy to test with a saved piece of HTML.
@@ -18,6 +20,8 @@ import {
   type RecipeImport,
   type RecipeInput,
 } from '@art-web/shared';
+import { groupIngredients } from './groups.js';
+import { decodeEntities } from './text.js';
 
 /** A value from JSON we know nothing about yet. */
 type Json = unknown;
@@ -31,48 +35,6 @@ const toList = (value: Json): Json[] =>
   value === undefined || value === null ? [] : Array.isArray(value) ? value : [value];
 
 // ---- Text clean-up ----
-
-const NAMED_ENTITIES: Record<string, string> = {
-  amp: '&',
-  lt: '<',
-  gt: '>',
-  quot: '"',
-  apos: "'",
-  nbsp: ' ',
-  aring: 'å',
-  Aring: 'Å',
-  auml: 'ä',
-  Auml: 'Ä',
-  ouml: 'ö',
-  Ouml: 'Ö',
-  eacute: 'é',
-  Eacute: 'É',
-  egrave: 'è',
-  uuml: 'ü',
-  Uuml: 'Ü',
-  frac12: '½',
-  frac14: '¼',
-  frac34: '¾',
-  deg: '°',
-  ndash: '–',
-  mdash: '—',
-  hellip: '…',
-  rsquo: '’',
-  lsquo: '‘',
-  rdquo: '”',
-  ldquo: '“',
-  times: '×',
-  reg: '®',
-};
-
-/** "Sm&ouml;r &amp; olja" → "Smör & olja" */
-export function decodeEntities(text: string): string {
-  return text.replace(/&(#x[0-9a-f]+|#\d+|[a-z][a-z0-9]*);/gi, (match, code: string) => {
-    if (code[0] !== '#') return NAMED_ENTITIES[code] ?? match;
-    const point = code[1]?.toLowerCase() === 'x' ? parseInt(code.slice(2), 16) : +code.slice(1);
-    return point > 0 && point <= 0x10ffff ? String.fromCodePoint(point) : match;
-  });
-}
 
 /** Plain text on one line: entities decoded, tags removed, whitespace tidied. */
 function cleanText(value: Json): string {
@@ -227,7 +189,7 @@ function tagsFrom(recipe: JsonObject): string[] {
   return [...new Set(tags)].slice(0, MAX_TAGS);
 }
 
-function recipeFromJsonLd(recipe: JsonObject, pageUrl: string): RecipeInput {
+function recipeFromJsonLd(recipe: JsonObject, pageUrl: string, html: string): RecipeInput {
   let prep = durationMinutes(recipe.prepTime) || null;
   let cook = durationMinutes(recipe.cookTime) || null;
   const total = durationMinutes(recipe.totalTime) || null;
@@ -239,6 +201,10 @@ function recipeFromJsonLd(recipe: JsonObject, pageUrl: string): RecipeInput {
 
   const minutes = (value: number | null) => (value === null ? null : Math.min(value, 24 * 60));
   const servings = firstInteger(recipe.recipeYield);
+  // "ingredients" is the older name of the same field.
+  const ingredients = toList(recipe.recipeIngredient ?? recipe.ingredients)
+    .map((line) => cleanText(line).slice(0, 500))
+    .filter(Boolean);
 
   return {
     title: (cleanText(recipe.name) || cleanText(recipe.headline)).slice(0, 200),
@@ -246,11 +212,7 @@ function recipeFromJsonLd(recipe: JsonObject, pageUrl: string): RecipeInput {
     servings: servings && servings >= 1 && servings <= 100 ? servings : null,
     prepMinutes: minutes(prep),
     cookMinutes: minutes(cook),
-    // "ingredients" is the older name of the same field.
-    ingredients: toList(recipe.recipeIngredient ?? recipe.ingredients)
-      .map((line) => cleanText(line).slice(0, 500))
-      .filter(Boolean)
-      .slice(0, 100),
+    ingredients: groupIngredients(ingredients, html).slice(0, 100),
     steps: instructionLines(recipe.recipeInstructions)
       .map((line) => line.slice(0, 2000))
       .slice(0, 100),
@@ -293,7 +255,7 @@ function recipeFromMeta(html: string, pageUrl: string): RecipeInput {
 export function extractRecipe(html: string, pageUrl: string): RecipeImport | null {
   const jsonLd = findRecipe(jsonLdBlocks(html));
   const candidates: [RecipeImport['found'], RecipeInput][] = [
-    ...(jsonLd ? [['full', recipeFromJsonLd(jsonLd, pageUrl)] as ['full', RecipeInput]] : []),
+    ...(jsonLd ? [['full', recipeFromJsonLd(jsonLd, pageUrl, html)] as ['full', RecipeInput]] : []),
     ['basic', recipeFromMeta(html, pageUrl)],
   ];
   for (const [found, draft] of candidates) {
