@@ -30,8 +30,13 @@ export type FetchPage = (url: string) => Promise<FetchedPage>;
 /** Something went wrong that the user can be told about. The message is in Swedish. */
 export class PageFetchError extends Error {}
 
-/** For everything from the first lookup to the last byte, redirects included. */
-const TIMEOUT_MS = 8000;
+/**
+ * For everything from the first lookup to the last byte, redirects included.
+ * A recipe site on a slow day can need several seconds. It has to stay well
+ * under the time Vercel gives the function (`maxDuration` in vercel.json),
+ * or the function is cut off before it can answer.
+ */
+const TIMEOUT_MS = 15_000;
 const MAX_REDIRECTS = 5;
 /** Recipe pages are well under 1 MB. Anything past this is cut off, not downloaded. */
 const MAX_BYTES = 3 * 1024 * 1024;
@@ -43,6 +48,12 @@ const USER_AGENT = 'Mozilla/5.0 (compatible; RecipeImporter/1.0; personal recipe
  * used to find out what exists on a private network.
  */
 const UNREACHABLE = 'Kunde inte hämta sidan. Kontrollera länken och försök igen.';
+/**
+ * Running out of time gets a message of its own: it is the other site being
+ * slow, and trying again later helps. (It gives nothing away, since private
+ * addresses are refused at once and never get to time out.)
+ */
+const TOO_SLOW = 'Sidan svarade inte i tid. Försök igen om en stund.';
 
 // Addresses that are not ordinary public internet hosts.
 const blocked = new BlockList();
@@ -91,13 +102,14 @@ export function isPublicAddress(address: string): boolean {
  */
 const publicLookup: LookupFunction = (hostname, options, callback) => {
   lookup(hostname, options, (err, address, family) => {
+    // No such host: pass the error on. (There is no address to check then.)
+    if (err) return callback(err, address, family);
     // One address, or a list when Node asks for all of them (to try IPv6 and IPv4).
     const addresses = typeof address === 'string' ? [address] : address.map((a) => a.address);
-    if (!err && !addresses.every(isPublicAddress)) {
-      callback(new Error(`Refusing to connect to ${hostname}: not a public address`), address);
-    } else {
-      callback(err, address, family);
+    if (!addresses.every(isPublicAddress)) {
+      return callback(new Error(`Refusing ${hostname}: not a public address`), address, family);
     }
+    callback(null, address, family);
   });
 };
 
@@ -145,6 +157,11 @@ export const fetchPage: FetchPage = async (startUrl) => {
   const signal = AbortSignal.timeout(TIMEOUT_MS);
   let url = new URL(startUrl);
 
+  // What to tell the user when a request fails. The real reason is kept as
+  // the error's `cause`, which the route writes to the log.
+  const failure = (cause: unknown) =>
+    new PageFetchError(signal.aborted ? TOO_SLOW : UNREACHABLE, { cause });
+
   for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
     assertPublicUrl(url);
 
@@ -161,8 +178,8 @@ export const fetchPage: FetchPage = async (startUrl) => {
           'Accept-Language': 'sv,en;q=0.8',
         },
       });
-    } catch {
-      throw new PageFetchError(UNREACHABLE);
+    } catch (err) {
+      throw failure(err);
     }
 
     if (res.status >= 300 && res.status < 400) {
@@ -184,8 +201,8 @@ export const fetchPage: FetchPage = async (startUrl) => {
     }
     try {
       return { html: await readText(res), url: url.href };
-    } catch {
-      throw new PageFetchError(UNREACHABLE);
+    } catch (err) {
+      throw failure(err);
     }
   }
   throw new PageFetchError(UNREACHABLE);

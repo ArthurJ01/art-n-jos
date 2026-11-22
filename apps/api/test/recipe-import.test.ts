@@ -222,6 +222,14 @@ describe('page fetching guard', () => {
     await expect(fetchPage('http://localhost/')).rejects.toThrow(PageFetchError);
     await expect(fetchPage('http://127.0.0.1/')).rejects.toThrow(PageFetchError);
   });
+
+  it('fails cleanly for a host name that does not exist', async () => {
+    // ".invalid" is reserved for names that never exist, so no real site is contacted.
+    const error = await fetchPage('https://no-such-recipe-site.invalid/').catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(PageFetchError);
+    // The real reason is kept for the log.
+    expect((error as PageFetchError).cause).toBeInstanceOf(Error);
+  });
 });
 
 describe('POST /api/recipes/import', () => {
