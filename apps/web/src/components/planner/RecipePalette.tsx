@@ -34,7 +34,7 @@ export function RecipePalette({ recipes, isPending, selected, onSelect }: Props)
       <p className="palette-hint">
         {selected
           ? `Välj en ruta för ”${selected.title}”.`
-          : 'Dra till en dag, eller tryck på ett recept och sedan på en ruta. Dubbelklicka (eller håll inne) på en ruta för att skriva in en måltid direkt. Dubbelklicka på en måltid (✎ på mobilen) för att ändra den.'}
+          : 'Dra till en dag, eller tryck på ett recept och sedan på en ruta. Dubbelklicka (eller håll inne) på en ruta för att skriva in en måltid direkt. Dubbelklicka på en måltid, eller tryck på ✎, för att ändra den.'}
       </p>
       <input
         type="search"
