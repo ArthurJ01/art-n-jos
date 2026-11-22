@@ -15,6 +15,7 @@ import { authRouter } from './routes/auth.js';
 import { recipesRouter } from './routes/recipes.js';
 import { mealPlanRouter } from './routes/meal-plan.js';
 import { errorHandler, notFound } from './middleware/errors.js';
+import { fetchPage as fetchPageFromWeb, type FetchPage } from './import/fetch-page.js';
 
 // The site is in Swedish, so Zod's built-in validation messages should be too.
 z.config(sv());
@@ -23,13 +24,15 @@ interface AppDeps {
   env: Env;
   db: Db;
   logger: Logger;
+  /** Downloads a page for the recipe import. Tests pass a fake, to stay off the internet. */
+  fetchPage?: FetchPage;
 }
 
 /**
  * Builds the Express app. Kept separate from index.ts (which starts listening)
  * so tests can create an app without opening a port.
  */
-export function createApp({ env, db, logger }: AppDeps) {
+export function createApp({ env, db, logger, fetchPage = fetchPageFromWeb }: AppDeps) {
   const app = express();
   const isProd = env.NODE_ENV === 'production';
 
@@ -63,7 +66,7 @@ export function createApp({ env, db, logger }: AppDeps) {
   });
 
   api.use('/auth', authRouter({ password: env.APP_PASSWORD, secureCookies: isProd }));
-  api.use('/recipes', recipesRouter(db));
+  api.use('/recipes', recipesRouter(db, { fetchPage }));
   api.use('/meal-plan', mealPlanRouter(db));
   api.use(notFound);
 

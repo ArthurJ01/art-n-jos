@@ -17,17 +17,23 @@ const optionalMinutes = z
   .nullable()
   .optional();
 
+/** A web address. Only http(s), so a link can never be a "javascript:" one. */
+const webUrl = z.url({ protocol: /^https?$/ }).max(2000);
+
 export const recipeInputSchema = z.object({
   title: z.string().trim().min(1, 'Titel krävs').max(200),
   description: z.string().trim().max(2000).nullable().optional(),
   servings: z.number().int().min(1).max(100).nullable().optional(),
   prepMinutes: optionalMinutes,
   cookMinutes: optionalMinutes,
+  /** One per line. A line ending with a colon is a group heading: "Sås:". */
   ingredients: trimmedLines,
+  /** One per line, with the same kind of headings as the ingredients. */
   steps: z.array(z.string().trim().min(1).max(2000)).max(100).default([]),
+  tips: z.string().trim().max(2000).nullable().optional(),
   tags: z.array(z.string().trim().toLowerCase().min(1).max(40)).max(20).default([]),
   sourceUrl: z
-    .union([z.url(), z.literal('')])
+    .union([webUrl, z.literal('')])
     .nullable()
     .optional(),
   createdBy: z.string().trim().max(60).nullable().optional(),
@@ -48,11 +54,66 @@ export interface Recipe {
   cookMinutes: number | null;
   ingredients: string[];
   steps: string[];
+  tips: string | null;
   tags: string[];
   sourceUrl: string | null;
   createdBy: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+// ---- Group headings inside ingredients and steps ----
+//
+// Ingredients and steps are plain lists of lines. A line that ends with a
+// colon ("Sås:", "Till servering:") is a heading for the lines after it. That
+// keeps a recipe easy to type, paste and import, with no extra structure.
+
+/** "Sås:" is a heading, "2 dl grädde" is not. */
+export const isHeadingLine = (line: string) => /[^:\s]\s*:+\s*$/.test(line);
+
+/** "Sås:" → "Sås" */
+export const headingText = (line: string) => line.replace(/[:\s]+$/, '').trim();
+
+/** "Sås" → "Sås:" (the way a heading is stored) */
+export const toHeadingLine = (text: string) => `${headingText(text)}:`;
+
+export interface LineGroup {
+  /** Null for the lines before the first heading. */
+  heading: string | null;
+  lines: string[];
+}
+
+/** Splits a list of lines into groups, one per heading. */
+export function groupLines(lines: string[]): LineGroup[] {
+  const groups: LineGroup[] = [];
+  let current: LineGroup | undefined;
+  for (const line of lines) {
+    if (isHeadingLine(line)) {
+      current = { heading: headingText(line), lines: [] };
+      groups.push(current);
+    } else {
+      if (!current) {
+        current = { heading: null, lines: [] };
+        groups.push(current);
+      }
+      current.lines.push(line);
+    }
+  }
+  return groups;
+}
+
+// ---- Import from a link ----
+
+export const recipeImportSchema = z.object({ url: webUrl });
+
+/** What "Hämta recept" found on a page: a draft to check and save, nothing stored yet. */
+export interface RecipeImport {
+  recipe: RecipeData;
+  /**
+   * `full` when the page describes its recipe in a way programs can read.
+   * `basic` when only the title and description of the page could be used.
+   */
+  found: 'full' | 'basic';
 }
 
 export const recipeQuerySchema = z.object({
