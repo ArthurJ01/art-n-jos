@@ -13,6 +13,7 @@ const recipe: Recipe = {
   cookMinutes: 10,
   ingredients: [],
   steps: [],
+  tips: null,
   tags: ['pasta', 'quick'],
   sourceUrl: null,
   createdBy: null,

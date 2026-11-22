@@ -50,29 +50,49 @@ export function mealPlanRouter(db: Db) {
     res.json(entries);
   });
 
-  router.post('/', requireAuth, async (req, res) => {
-    const data = mealPlanEntryInputSchema.parse(req.body);
+  /**
+   * Validates the body of a POST or PUT and turns it into column values.
+   * Checks the recipe first, so a missing one gives a clear 400 instead of a
+   * foreign-key error (which would surface as a 500).
+   */
+  async function toColumns(body: unknown) {
+    const data = mealPlanEntryInputSchema.parse(body);
     if (data.recipeId != null) {
-      // Check first so a missing recipe gives a clear 400 instead of a
-      // foreign-key error (which would surface as a 500).
       const [recipe] = await db
         .select({ id: recipes.id })
         .from(recipes)
         .where(eq(recipes.id, data.recipeId));
       if (!recipe) throw new HttpError(400, 'Receptet finns inte');
     }
+    return {
+      date: data.date,
+      meal: data.meal,
+      kind: data.kind,
+      recipeId: data.recipeId ?? null,
+      title: data.title ?? null,
+      isLeftover: data.isLeftover,
+    };
+  }
+
+  router.post('/', requireAuth, async (req, res) => {
     const [row] = await db
       .insert(mealPlanEntries)
-      .values({
-        date: data.date,
-        meal: data.meal,
-        kind: data.kind,
-        recipeId: data.recipeId ?? null,
-        title: data.title ?? null,
-        isLeftover: data.isLeftover,
-      })
+      .values(await toColumns(req.body))
       .returning({ id: mealPlanEntries.id });
     res.status(201).json(await getEntry(row!.id));
+  });
+
+  // PUT /api/meal-plan/5 replaces an entry: the way to change what is planned
+  // (another recipe, another name) while it keeps its place in the slot.
+  router.put('/:id', requireAuth, async (req, res) => {
+    const { id } = idParam.parse(req.params);
+    const updated = await db
+      .update(mealPlanEntries)
+      .set(await toColumns(req.body))
+      .where(eq(mealPlanEntries.id, id))
+      .returning({ id: mealPlanEntries.id });
+    if (updated.length === 0) throw new HttpError(404, 'Måltiden hittades inte');
+    res.json(await getEntry(id));
   });
 
   // PATCH /api/meal-plan/5 moves an entry to another day and/or meal.

@@ -20,12 +20,21 @@ export type PaletteItem =
 
 export const eatOutItem: PaletteItem = { kind: 'eat_out', title: EAT_OUT_LABEL };
 
-/** The recipes whose title contains the search text, as palette items. */
+/** "  Tacos   hos mamma " → "Tacos hos mamma", cut to what the API accepts. */
+export const cleanTitle = (text: string) => text.trim().replace(/\s+/g, ' ').slice(0, 100);
+
+/**
+ * The recipes whose title contains the search text, as palette items. A
+ * recipe with exactly that name comes first, so it is the one Enter picks
+ * ("Lasagne" before "Vegetarisk lasagne").
+ */
 export function recipeItems(recipes: Recipe[] | undefined, search: string): PaletteItem[] {
   const needle = search.trim().toLowerCase();
+  const isExact = (item: PaletteItem) => item.title.trim().toLowerCase() === needle;
   return (recipes ?? [])
     .filter((r) => r.title.toLowerCase().includes(needle))
-    .map((r) => ({ kind: 'recipe', recipeId: r.id, title: r.title }));
+    .map((r): PaletteItem => ({ kind: 'recipe', recipeId: r.id, title: r.title }))
+    .sort((a, b) => Number(isExact(b)) - Number(isExact(a)));
 }
 
 /**
@@ -34,11 +43,34 @@ export function recipeItems(recipes: Recipe[] | undefined, search: string): Pale
  * already has exactly that name.
  */
 export function customItem(search: string, recipes: PaletteItem[]): PaletteItem | null {
-  const title = search.trim().replace(/\s+/g, ' ').slice(0, 100);
+  const title = cleanTitle(search);
   if (!title) return null;
   const lower = title.toLowerCase();
+  // "Äta ute" typed out is the eat-out item, not a meal of its own with that name.
+  if (lower === EAT_OUT_LABEL.toLowerCase()) return null;
   return recipes.some((r) => r.title.toLowerCase() === lower) ? null : { kind: 'custom', title };
 }
+
+/**
+ * What a typed text means when it is saved as it stands (clicking outside the
+ * search box): the recipe with exactly that name, "Äta ute", or else a meal of
+ * its own. Null when nothing is typed.
+ *
+ * Unlike Enter, this never picks a recipe that merely contains the text:
+ * typing "Tacos" and clicking away should not plan "Fisktacos".
+ */
+export function typedItem(search: string, recipes: Recipe[] | undefined): PaletteItem | null {
+  const title = cleanTitle(search);
+  if (!title) return null;
+  const lower = title.toLowerCase();
+  const recipe = (recipes ?? []).find((r) => r.title.trim().toLowerCase() === lower);
+  if (recipe) return { kind: 'recipe', recipeId: recipe.id, title: recipe.title };
+  if (lower === EAT_OUT_LABEL.toLowerCase()) return eatOutItem;
+  return { kind: 'custom', title };
+}
+
+/** True when two items would plan the same thing (same recipe, or the same typed name). */
+export const isSameItem = (a: PaletteItem, b: PaletteItem) => paletteItemId(a) === paletteItemId(b);
 
 /** A stable id for a palette item (used as React key and drag id). */
 export function paletteItemId(item: PaletteItem): string {

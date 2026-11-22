@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { MemoryRouter } from 'react-router';
+import { MemoryRouter, useLocation } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { MealPlanEntry } from '@art-web/shared';
 import { MealPlannerPage } from './MealPlannerPage';
@@ -20,7 +20,7 @@ const planned: MealPlanEntry = {
 
 /**
  * Replaces fetch with a tiny fake API that remembers the plan in memory, and
- * returns the list of write requests (POST, DELETE) the page has made.
+ * returns the list of write requests (POST, PUT, DELETE) the page has made.
  */
 const parseBody = (init: RequestInit): unknown =>
   init.body ? JSON.parse(init.body as string) : undefined;
@@ -42,6 +42,19 @@ function fakeApi({ authenticated }: { authenticated: boolean }) {
       entries = [...entries, created];
       return json(created, 201);
     }
+    if (method === 'PUT') {
+      const body = parseBody(init) as Partial<MealPlanEntry>;
+      const id = Number(path.split('/').pop());
+      const updated = {
+        recipeId: null,
+        title: null,
+        ...body,
+        id,
+        recipeTitle: body.recipeId ? 'Lasagne' : null,
+      } as MealPlanEntry;
+      entries = entries.map((e) => (e.id === id ? updated : e));
+      return json(updated);
+    }
     if (method === 'DELETE') {
       entries = entries.filter((e) => `/meal-plan/${e.id}` !== path);
       return Promise.resolve(new Response(null, { status: 204 }));
@@ -54,6 +67,11 @@ function fakeApi({ authenticated }: { authenticated: boolean }) {
   return writes;
 }
 
+/** Shows which page the router is on, so a test can tell whether a link was followed. */
+function CurrentPath() {
+  return <output aria-label="Sida">{useLocation().pathname}</output>;
+}
+
 function renderPage() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
@@ -61,6 +79,7 @@ function renderPage() {
       {/* The week of Monday 16 November 2026. */}
       <MemoryRouter initialEntries={['/matplanering?vecka=2026-11-16']}>
         <MealPlannerPage />
+        <CurrentPath />
       </MemoryRouter>
     </QueryClientProvider>,
   );
@@ -98,7 +117,11 @@ describe('MealPlannerPage', () => {
     renderPage();
 
     const palette = await screen.findByLabelText('Recept att planera');
-    await user.click(await within(palette).findByRole('button', { name: 'Lasagne' }));
+    const lasagne = await within(palette).findByRole('button', { name: 'Lasagne' });
+    // The list has no instructions: the only text is what a clicked recipe is waiting for.
+    expect(within(palette).queryByText(/Välj en ruta/)).not.toBeInTheDocument();
+    await user.click(lasagne);
+    expect(within(palette).getByText('Välj en ruta för ”Lasagne”.')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Lägg till Lasagne: onsdag lunch' }));
 
     expect(writes).toEqual([
@@ -223,6 +246,124 @@ describe('MealPlannerPage', () => {
     await user.keyboard('Pizza{Escape}');
     expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
     expect(writes).toEqual([]);
+  });
+
+  it('saves what is typed when clicking outside the search box', async () => {
+    const writes = fakeApi({ authenticated: true });
+    const user = userEvent.setup();
+    renderPage();
+
+    const thursday = screen.getByRole('region', { name: /torsdag 19 nov/ });
+    await user.dblClick(await within(thursday).findByText('Middag'));
+    await user.keyboard('Pizza');
+    await user.click(screen.getByRole('heading', { name: 'Matplanering' }));
+
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+    expect(writes.map((w) => w.body)).toEqual([
+      { date: '2026-11-19', meal: 'dinner', kind: 'custom', title: 'Pizza', isLeftover: false },
+    ]);
+  });
+
+  it('saves the typed text as it stands, not the nearest recipe', async () => {
+    const writes = fakeApi({ authenticated: true });
+    const user = userEvent.setup();
+    renderPage();
+    await within(await screen.findByLabelText('Recept att planera')).findByRole('button', {
+      name: 'Lasagne',
+    });
+    const outside = screen.getByRole('heading', { name: 'Matplanering' });
+    const monday = screen.getByRole('region', { name: /måndag 16 nov/ });
+
+    // "las" is part of "Lasagne", but it is not what was typed.
+    await user.dblClick(within(monday).getByText('Frukost'));
+    await user.keyboard('las');
+    await user.click(outside);
+    // The whole name of a recipe is that recipe.
+    await user.dblClick(within(monday).getByText('Lunch'));
+    await user.keyboard('lasagne');
+    await user.click(outside);
+
+    expect(writes.map((w) => w.body)).toMatchObject([
+      { meal: 'breakfast', kind: 'custom', title: 'las' },
+      { meal: 'lunch', kind: 'recipe', recipeId: 3 },
+    ]);
+  });
+
+  it('closes an empty search box without adding anything when clicking outside', async () => {
+    const writes = fakeApi({ authenticated: true });
+    const user = userEvent.setup();
+    renderPage();
+
+    const monday = screen.getByRole('region', { name: /måndag 16 nov/ });
+    await user.dblClick(await within(monday).findByText('Lunch'));
+    await user.keyboard('  ');
+    await user.click(screen.getByRole('heading', { name: 'Matplanering' }));
+
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+    expect(writes).toEqual([]);
+  });
+
+  it('changes a planned meal after double-clicking it', async () => {
+    const writes = fakeApi({ authenticated: true });
+    const user = userEvent.setup();
+    renderPage();
+
+    const tuesday = screen.getByRole('region', { name: /tisdag 17 nov/ });
+    await user.dblClick(await within(tuesday).findByRole('link', { name: 'Lasagne' }));
+    const box = screen.getByRole('combobox');
+    expect(box).toHaveFocus();
+    expect(box).toHaveValue('Lasagne');
+
+    // The name is selected, so typing replaces it.
+    await user.keyboard('Pizza{Enter}');
+    expect(writes).toEqual([
+      {
+        method: 'PUT',
+        path: '/meal-plan/1',
+        body: {
+          date: '2026-11-17',
+          meal: 'dinner',
+          kind: 'custom',
+          title: 'Pizza',
+          isLeftover: false,
+        },
+      },
+    ]);
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+    expect(await within(tuesday).findByText('Pizza')).toBeInTheDocument();
+    // A double-click changes the meal; it does not open the recipe.
+    expect(screen.getByLabelText('Sida')).toHaveTextContent('/matplanering');
+  });
+
+  it('leaves a meal alone when its search box is closed untouched', async () => {
+    const writes = fakeApi({ authenticated: true });
+    const user = userEvent.setup();
+    renderPage();
+    const tuesday = screen.getByRole('region', { name: /tisdag 17 nov/ });
+    const edit = await within(tuesday).findByRole('button', { name: 'Ändra Lasagne' });
+
+    await user.click(edit);
+    expect(screen.getByRole('combobox')).toHaveValue('Lasagne');
+    await user.click(screen.getByRole('heading', { name: 'Matplanering' }));
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+
+    await user.click(edit);
+    await user.keyboard('{Enter}');
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+
+    expect(writes).toEqual([]);
+  });
+
+  it('opens a recipe on a single click, after waiting for a second one', async () => {
+    fakeApi({ authenticated: true });
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByRole('button', { name: 'Ändra Lasagne' }); // logged in
+
+    await user.click(screen.getByRole('link', { name: 'Lasagne' }));
+    expect(screen.getByLabelText('Sida')).toHaveTextContent('/matplanering');
+    await act(() => holdFor(400));
+    expect(screen.getByLabelText('Sida')).toHaveTextContent('/recept/3');
   });
 
   it('opens the search box on press and hold with a finger', async () => {

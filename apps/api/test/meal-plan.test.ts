@@ -33,6 +33,7 @@ describe('meal plan', () => {
     const body = { date: '2026-11-16', meal: 'dinner', kind: 'eat_out' };
     await request(app).post('/api/meal-plan').send(body).expect(401);
     await request(app).patch('/api/meal-plan/1').send(body).expect(401);
+    await request(app).put('/api/meal-plan/1').send(body).expect(401);
     await request(app).delete('/api/meal-plan/1').expect(401);
   });
 
@@ -133,6 +134,56 @@ describe('meal plan', () => {
     await agent.delete(`/api/meal-plan/${id}`).expect(404);
     const list = await request(app).get(week).expect(200);
     expect(list.body).toEqual([]);
+  });
+
+  it('replaces what an entry is, keeping its id and place', async () => {
+    const agent = await loggedInAgent();
+    const recipeId = await createRecipe('Lasagne');
+    const slot = { date: '2026-11-17', meal: 'dinner' };
+    const created = await agent
+      .post('/api/meal-plan')
+      .send({ ...slot, kind: 'custom', title: 'Lasange' })
+      .expect(201);
+    const id = created.body.id;
+
+    // Fix the spelling of a typed meal...
+    const renamed = await agent
+      .put(`/api/meal-plan/${id}`)
+      .send({ ...slot, kind: 'custom', title: 'Lasagne hos mamma' })
+      .expect(200);
+    expect(renamed.body).toMatchObject({ id, kind: 'custom', title: 'Lasagne hos mamma' });
+
+    // ...or swap it for a recipe.
+    const swapped = await agent
+      .put(`/api/meal-plan/${id}`)
+      .send({ ...slot, kind: 'recipe', recipeId })
+      .expect(200);
+    expect(swapped.body).toEqual({
+      id,
+      ...slot,
+      kind: 'recipe',
+      recipeId,
+      recipeTitle: 'Lasagne',
+      title: null,
+      isLeftover: false,
+    });
+
+    // The same rules as when creating one.
+    await agent
+      .put(`/api/meal-plan/${id}`)
+      .send({ ...slot, kind: 'recipe', recipeId: 999999 })
+      .expect(400);
+    await agent
+      .put(`/api/meal-plan/${id}`)
+      .send({ ...slot, kind: 'custom' })
+      .expect(400);
+    await agent
+      .put('/api/meal-plan/999999')
+      .send({ ...slot, kind: 'eat_out' })
+      .expect(404);
+
+    const list = await request(app).get(week).expect(200);
+    expect(list.body).toEqual([swapped.body]);
   });
 
   it('removes a recipe from the plan when the recipe is deleted', async () => {

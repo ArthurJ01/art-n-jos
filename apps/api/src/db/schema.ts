@@ -33,6 +33,8 @@ export const recipes = pgTable(
       .array()
       .notNull()
       .default(sql`'{}'::text[]`),
+    // Free text shown under the steps ("Blir ännu godare dagen efter").
+    tips: text('tips'),
     tags: text('tags')
       .array()
       .notNull()
