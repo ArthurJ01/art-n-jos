@@ -1,6 +1,7 @@
 import request from 'supertest';
 import { afterAll, describe, expect, it } from 'vitest';
-import { decodeEntities, durationMinutes, extractRecipe } from '../src/import/extract.js';
+import { durationMinutes, extractRecipe } from '../src/import/extract.js';
+import { decodeEntities } from '../src/import/text.js';
 import {
   assertPublicUrl,
   fetchPage,
@@ -158,6 +159,98 @@ describe('extractRecipe', () => {
   });
 });
 
+describe('ingredient groups', () => {
+  /** A recipe page: the flat ingredient list as data, and `body` as what the visitor sees. */
+  const groupedPage = (recipeIngredient: string[], body: string) =>
+    `<html><head><script type="application/ld+json">${JSON.stringify({
+      ...pancakes,
+      recipeIngredient,
+    })}</script></head><body>${body}</body></html>`;
+  const ingredientsOf = (html: string) =>
+    extractRecipe(html, 'https://example.com/')?.recipe.ingredients;
+
+  // One ingredient the way arla.se lays it out: the name in one cell, the amount in the next.
+  const row = (name: string, amount: string) =>
+    `<tr><th><div class="u-flex"><span> ${name} </span></div></th><td>${amount}</td></tr>`;
+
+  const gryta = [
+    'ca 500 g kycklingfil&eacute;',
+    '2 vitlöksklyftor',
+    '2 dl Fina Köket® Grädde',
+    '1 msk tomatpuré',
+    '3 dl ris',
+    '1 kruka koriander',
+  ];
+  const grytaBody = `
+    <nav><a href="/kyckling">Kycklingfilé</a> <a href="/ris">Ris</a></nav>
+    <h1>Kycklinggryta</h1>
+    <p>Bryn ca 500 g kycklingfilé och 2 vitlöksklyftor, och koka 3 dl ris under tiden.</p>
+    <h2>Ingredienser</h2>
+    <div class="group"><table>
+      ${row('Kycklingfil&eacute;', 'ca 500 g')}
+      ${row('Vitlöksklyftor', '2')}
+    </table></div>
+    <div class="group"><h3 class="small"> S&aring;s: </h3><table>
+      ${row('<a href="/produkt">Fina Köket<sup>®</sup> Grädde</a>', '2 dl')}
+      ${row('Tomatpuré', '1 msk')}
+    </table></div>
+    <div class="group"><h3 class="small">Till servering:</h3><table>
+      ${row('Ris', '3 dl')}
+      ${row('Koriander', '1 kruka')}
+    </table></div>
+    <h2>Gör så här</h2><ol><li>Bryn kycklingen.</li></ol>
+    <h3>Fler recept</h3>`;
+
+  it('takes the headings that stand between the ingredients on the page', () => {
+    expect(ingredientsOf(groupedPage(gryta, grytaBody))).toEqual([
+      'ca 500 g kycklingfilé',
+      '2 vitlöksklyftor',
+      'Sås:',
+      '2 dl Fina Köket® Grädde',
+      '1 msk tomatpuré',
+      'Till servering:',
+      '3 dl ris',
+      '1 kruka koriander',
+    ]);
+  });
+
+  it('includes a heading above the first group, but not the title of the whole list', () => {
+    const body = `
+      <h3>Ingredients</h3>
+      <h4 class="group-name">Marinade</h4>
+      <ul><li><span>1/2</span> <span>cup</span> <span>yoghurt</span></li><li>1 tbsp lemon juice</li></ul>
+      <h4 class="group-name">Curry</h4>
+      <ul><li>2 tbsp butter</li><li><span>1</span> <span>cup</span> <span>cream</span></li></ul>
+      <h3>Instructions</h3>`;
+    const ingredients = ['1/2 cup yoghurt', '1 tbsp lemon juice', '2 tbsp butter', '1 cup cream'];
+    expect(ingredientsOf(groupedPage(ingredients, body))).toEqual([
+      'Marinade:',
+      '1/2 cup yoghurt',
+      '1 tbsp lemon juice',
+      'Curry:',
+      '2 tbsp butter',
+      '1 cup cream',
+    ]);
+  });
+
+  it('leaves the list flat when the page shows no groups, or not the ingredients at all', () => {
+    const flat = ['3 dl vetemjöl', '6 dl mjölk', '3 ägg'];
+    const noGroups = `<h2>Ingredienser</h2><ul><li>3 dl vetemjöl</li><li>6 dl mjölk</li><li>3 ägg</li></ul>
+      <h2>Gör så här</h2>`;
+    expect(ingredientsOf(groupedPage(flat, noGroups))).toEqual(flat);
+
+    // A page that draws its ingredients in the browser: they are not in the HTML.
+    const elsewhere = `<h2>Ingredienser</h2><div id="app"></div><h3>Sås</h3><p>3 ägg</p>`;
+    expect(ingredientsOf(groupedPage(flat, elsewhere))).toEqual(flat);
+  });
+
+  it('does not add headings to a list that already has its own', () => {
+    const own = ['Deg:', '3 dl vetemjöl', '1 dl vatten', 'Fyllning:', '2 äpplen'];
+    const body = `<ul><li>3 dl vetemjöl</li><li>1 dl vatten</li></ul><h3>Fyllningen</h3><ul><li>2 äpplen</li></ul>`;
+    expect(ingredientsOf(groupedPage(own, body))).toEqual(own);
+  });
+});
+
 describe('import helpers', () => {
   it('reads ISO 8601 durations as minutes', () => {
     expect(durationMinutes('PT45M')).toBe(45);
@@ -221,6 +314,14 @@ describe('page fetching guard', () => {
     // "localhost" is looked up while connecting; the answer is not a public address.
     await expect(fetchPage('http://localhost/')).rejects.toThrow(PageFetchError);
     await expect(fetchPage('http://127.0.0.1/')).rejects.toThrow(PageFetchError);
+  });
+
+  it('fails cleanly for a host name that does not exist', async () => {
+    // ".invalid" is reserved for names that never exist, so no real site is contacted.
+    const error = await fetchPage('https://no-such-recipe-site.invalid/').catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(PageFetchError);
+    // The real reason is kept for the log.
+    expect((error as PageFetchError).cause).toBeInstanceOf(Error);
   });
 });
 

@@ -4,11 +4,19 @@ import { LegacyRecipeRedirect } from './components/LegacyRedirects';
 import { HomePage } from './pages/HomePage';
 import { RecipeListPage } from './pages/RecipeListPage';
 import { RecipeDetailPage } from './pages/RecipeDetailPage';
-import { RecipeFormPage } from './pages/RecipeFormPage';
 import { LoginPage } from './pages/LoginPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { RequireAuth } from './components/RequireAuth';
 import { paths } from './lib/paths';
+
+/**
+ * The recipe builder, loaded on demand like the planner: it uses the same
+ * drag-and-drop library, and only someone who is logged in ever opens it.
+ */
+const recipeFormPage = async () => {
+  const { RecipeFormPage } = await import('./pages/RecipeFormPage');
+  return { Component: RecipeFormPage };
+};
 
 export const router = createBrowserRouter([
   {
@@ -32,8 +40,8 @@ export const router = createBrowserRouter([
       {
         element: <RequireAuth />,
         children: [
-          { path: paths.newRecipe, element: <RecipeFormPage /> },
-          { path: paths.editRecipe(':id'), element: <RecipeFormPage /> },
+          { path: paths.newRecipe, lazy: recipeFormPage },
+          { path: paths.editRecipe(':id'), lazy: recipeFormPage },
         ],
       },
 

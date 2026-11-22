@@ -849,6 +849,31 @@ textarea.editor-row-input {
   outline-offset: -2px;
 }
 
+/* The six dots a row is dragged by. */
+.drag-handle {
+  display: grid;
+  place-content: center;
+  cursor: grab;
+  /* On a touch screen a finger on the handle drags the row, not the page. */
+  touch-action: none;
+}
+
+/* The row in the air: above the others, with a shadow under it. */
+.editor-row-dragging {
+  position: relative;
+  z-index: 1;
+}
+
+.editor-row-dragging .editor-row-input {
+  border-color: var(--accent);
+  box-shadow: 0 8px 24px var(--shadow);
+}
+
+.editor-row-dragging .drag-handle {
+  cursor: grabbing;
+  color: var(--accent);
+}
+
 .editor-add {
   display: flex;
   gap: 0.5rem;
@@ -1254,29 +1279,66 @@ textarea.editor-row-input {
   background: var(--border);
 }
 
-/* With a mouse, only show the buttons on the chip you point at (or tab to). */
+/*
+ * With a mouse, only show the buttons on the chip you point at (or tab to).
+ *
+ * They get a row of their own under the name, which the chip grows to make
+ * room for. That way the name has the whole width of the chip (the days are
+ * narrow, and three buttons next to it left room for a few letters per line),
+ * and no button is ever in the way of a double-click on the name.
+ *
+ * Touch screens can't hover, so there the buttons are always shown, next to
+ * the name. The days are stacked on a phone, so there is room for that.
+ */
 @media (hover: hover) {
-  .entry-actions {
-    opacity: 0;
+  .slot-editable {
+    /* How tall the row of buttons is, and the gap between it and the name. */
+    --actions-height: calc(0.85rem * 1.35);
+    --actions-gap: 0.25rem;
   }
 
-  .entry:hover .entry-actions,
-  .entry:focus-within .entry-actions {
-    opacity: 1;
+  .entry {
+    flex-wrap: wrap;
+    gap: var(--actions-gap);
+  }
+
+  .entry-actions {
+    display: none;
+    /* The full width of the chip pushes them down to the next row. */
+    width: 100%;
+    height: var(--actions-height);
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.15rem;
   }
 
   /*
-   * A mouse changes a meal with a double-click, so the "change" button would
-   * only take room from the meal's name. It is there for touch screens, and
-   * shows up for the keyboard when you tab to the meal.
+   * :focus-visible is focus from the keyboard. Plain :focus-within would keep
+   * the row open on every chip that has been clicked, until you click elsewhere.
    */
-  .entry-action-edit {
-    display: none;
+  .entry:hover .entry-actions,
+  .entry:focus-visible .entry-actions,
+  .entry:has(:focus-visible) .entry-actions {
+    display: flex;
   }
 
-  .entry:focus-visible .entry-action-edit,
-  .entry:has(:focus-visible) .entry-action-edit {
-    display: inline;
+  /*
+   * A chip that grows would make its slot taller, and with it that whole row
+   * of the week: everything below would jump as the mouse passes. So every
+   * slot keeps exactly that much room free at its bottom (::after), and gives
+   * it up while one of its chips shows its buttons. The slot stays the same
+   * height. (0.3rem is the slot's own gap, which goes away with the ::after.)
+   */
+  .slot-editable::after {
+    content: '';
+    flex-shrink: 0;
+    height: calc(var(--actions-height) + var(--actions-gap) - 0.3rem);
+  }
+
+  .slot-editable:has(.entry:hover)::after,
+  .slot-editable:has(.entry:focus-visible)::after,
+  .slot-editable:has(.entry :focus-visible)::after {
+    display: none;
   }
 }
 

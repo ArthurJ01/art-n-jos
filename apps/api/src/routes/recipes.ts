@@ -95,9 +95,13 @@ export function recipesRouter(db: Db, { fetchPage }: { fetchPage: FetchPage }) {
   router.post('/import', requireAuth, importLimiter, async (req, res) => {
     const { url } = recipeImportSchema.parse(req.body);
     const page = await fetchPage(url).catch((err: unknown) => {
+      if (!(err instanceof PageFetchError)) throw err;
+      // The user gets a short message. The log gets the real reason (the
+      // error's cause: a timeout, a refused address, a failed lookup), which
+      // is what to look at in Vercel's logs when an import doesn't work.
+      req.log.warn({ err, url }, 'Recipe import: could not fetch the page');
       // 422: the request was fine, but that page can't be turned into a recipe.
-      if (err instanceof PageFetchError) throw new HttpError(422, err.message);
-      throw err;
+      throw new HttpError(422, err.message);
     });
     const result = extractRecipe(page.html, page.url);
     if (!result) throw new HttpError(422, 'Hittade inget recept på den sidan.');

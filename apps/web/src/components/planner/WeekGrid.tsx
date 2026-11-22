@@ -282,8 +282,8 @@ function EntryChip({ entry, canEdit, isEditing, onEdit, onMakeLeftover, onRemove
               🍱
             </button>
           )}
-          {/* With a mouse this is a double-click on the meal, so the button is
-              only shown on touch screens and for the keyboard (see styles.css). */}
+          {/* The same as a double-click on the meal, for touch screens, the
+              keyboard, and anyone who doesn't think of double-clicking. */}
           <button
             type="button"
             className="entry-action entry-action-edit"
