@@ -849,6 +849,31 @@ textarea.editor-row-input {
   outline-offset: -2px;
 }
 
+/* The six dots a row is dragged by. */
+.drag-handle {
+  display: grid;
+  place-content: center;
+  cursor: grab;
+  /* On a touch screen a finger on the handle drags the row, not the page. */
+  touch-action: none;
+}
+
+/* The row in the air: above the others, with a shadow under it. */
+.editor-row-dragging {
+  position: relative;
+  z-index: 1;
+}
+
+.editor-row-dragging .editor-row-input {
+  border-color: var(--accent);
+  box-shadow: 0 8px 24px var(--shadow);
+}
+
+.editor-row-dragging .drag-handle {
+  cursor: grabbing;
+  color: var(--accent);
+}
+
 .editor-add {
   display: flex;
   gap: 0.5rem;

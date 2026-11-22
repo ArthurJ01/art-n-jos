@@ -57,6 +57,10 @@ function renderPage() {
 const ingredientList = () => screen.getByRole('group', { name: /Ingredienser/ });
 const stepList = () => screen.getByRole('group', { name: /Gör så här/ });
 
+/** How the fetch from a link went. (The lists have status messages too, for dragging.) */
+const importStatus = () =>
+  within(screen.getByLabelText(/Hämta från en länk/).closest('form')!).getByRole('status');
+
 /** The text of every row in one of the two lists. */
 const rowTexts = (list: HTMLElement) =>
   within(list)
@@ -65,6 +69,7 @@ const rowTexts = (list: HTMLElement) =>
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 describe('RecipeFormPage', () => {
@@ -144,6 +149,37 @@ describe('RecipeFormPage', () => {
     expect(rowTexts(ingredients)).toEqual(['Smör', 'Mjölk']);
   });
 
+  it('moves a row by its drag handle, here with the keyboard', async () => {
+    fakeApi();
+    // The test browser (jsdom) does no layout: everything is at 0,0 and has no
+    // size. Dragging needs to know where the rows are, so give them places,
+    // 40px apart, by their order in the list.
+    vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (
+      this: Element,
+    ) {
+      const row = this.closest('.editor-row');
+      const index = row ? [...row.parentElement!.children].indexOf(row) : 0;
+      return new DOMRect(0, index * 40, 300, 40);
+    });
+    Element.prototype.scrollIntoView = vi.fn();
+    const user = userEvent.setup();
+    renderPage();
+    const ingredients = ingredientList();
+
+    await user.click(within(ingredients).getByLabelText('Ingrediens 1'));
+    await user.keyboard('Ägg{Enter}Mjölk{Enter}Smör');
+
+    // Space picks the row up, the arrow keys move it, and Space drops it.
+    within(ingredients).getByRole('button', { name: 'Dra ingrediens Ägg' }).focus();
+    await user.keyboard('[Space]');
+    await user.keyboard('[ArrowDown]');
+    await user.keyboard('[ArrowDown]');
+    await user.keyboard('[Space]');
+
+    expect(rowTexts(ingredients)).toEqual(['Mjölk', 'Smör', 'Ägg']);
+    expect(screen.getByText('Släppte raden på plats 3.')).toBeInTheDocument();
+  });
+
   it('turns several pasted lines into rows', async () => {
     fakeApi();
     const user = userEvent.setup();
@@ -174,7 +210,7 @@ describe('RecipeFormPage', () => {
     expect(sent).toEqual([
       { path: '/recipes/import', body: { url: 'https://example.com/pannkakor' } },
     ]);
-    expect(screen.getByRole('status')).toHaveTextContent('Receptet är hämtat');
+    expect(importStatus()).toHaveTextContent('Receptet är hämtat');
     expect(screen.getByLabelText('Portioner')).toHaveValue(4);
     expect(screen.getByLabelText('Tillagning (min)')).toHaveValue(30);
     expect(rowTexts(ingredientList())).toEqual(['2 ½ dl vetemjöl', '6 dl mjölk', '3 ägg']);
@@ -218,6 +254,6 @@ describe('RecipeFormPage', () => {
     });
     await user.click(screen.getByRole('button', { name: 'Hämta recept' }));
     expect(await screen.findByDisplayValue('Bara en titel')).toBeInTheDocument();
-    expect(screen.getByRole('status')).toHaveTextContent('bara titel och beskrivning följde med');
+    expect(importStatus()).toHaveTextContent('bara titel och beskrivning följde med');
   });
 });
