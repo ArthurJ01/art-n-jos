@@ -117,7 +117,11 @@ describe('MealPlannerPage', () => {
     renderPage();
 
     const palette = await screen.findByLabelText('Recept att planera');
-    await user.click(await within(palette).findByRole('button', { name: 'Lasagne' }));
+    const lasagne = await within(palette).findByRole('button', { name: 'Lasagne' });
+    // The list has no instructions: the only text is what a clicked recipe is waiting for.
+    expect(within(palette).queryByText(/Välj en ruta/)).not.toBeInTheDocument();
+    await user.click(lasagne);
+    expect(within(palette).getByText('Välj en ruta för ”Lasagne”.')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Lägg till Lasagne: onsdag lunch' }));
 
     expect(writes).toEqual([

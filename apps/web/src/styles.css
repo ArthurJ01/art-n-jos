@@ -1018,6 +1018,18 @@ textarea.editor-row-input {
   font-size: 0.85rem;
   line-height: 1.35;
   text-align: left;
+  /*
+   * A word too long for the chip is split between syllables, with a hyphen
+   * ("matlagnings-grädde"). The browser does this itself, from a dictionary
+   * for the page's language (<html lang="sv">). Only long words are split:
+   * at least 10 letters, with at least 4 on each side of the hyphen.
+   */
+  hyphens: auto;
+  hyphenate-limit-chars: 10 4 4;
+  /*
+   * The last resort: break the word anywhere. For a word the dictionary
+   * doesn't know, and for a browser that has no dictionary for Swedish.
+   */
   overflow-wrap: anywhere;
 }
 
@@ -1226,6 +1238,8 @@ textarea.editor-row-input {
   display: flex;
   align-items: flex-start;
   gap: 0.25rem;
+  /* A little smaller than in the list: the days are narrow, and names are long. */
+  font-size: 0.8125rem;
 }
 
 .entry-editable {
@@ -1240,6 +1254,11 @@ textarea.editor-row-input {
 .entry-text {
   flex: 1;
   min-width: 0;
+}
+
+/* The name of the meal: its own block, under the "Matlåda" badge if there is one. */
+.entry-name {
+  display: block;
 }
 
 .entry-text a {
@@ -1291,9 +1310,23 @@ textarea.editor-row-input {
  * the name. The days are stacked on a phone, so there is room for that.
  */
 @media (hover: hover) {
+  /*
+   * A very long name stops after three lines, with "…" at the end, so that
+   * one meal can't make that whole row of the week taller. The rest of it is
+   * shown when you point at the name (its title, set in WeekGrid). A touch
+   * screen has no pointing, so there the name is always shown in full.
+   */
+  .entry-name {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    overflow: hidden;
+  }
+
   .slot-editable {
     /* How tall the row of buttons is, and the gap between it and the name. */
-    --actions-height: calc(0.85rem * 1.35);
+    --actions-height: calc(0.8125rem * 1.35);
     --actions-gap: 0.25rem;
   }
 

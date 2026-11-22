@@ -260,14 +260,18 @@ function EntryChip({ entry, canEdit, isEditing, onEdit, onMakeLeftover, onRemove
     >
       <span className="entry-text">
         {entry.isLeftover && <span className="entry-badge">{LEFTOVER_LABEL}</span>}
-        {entry.recipeId ? (
-          // draggable={false}: otherwise the browser starts its own link drag.
-          <Link to={paths.recipe(entry.recipeId)} draggable={false} onClick={openRecipe.onClick}>
-            {title}
-          </Link>
-        ) : (
-          title
-        )}
+        {/* `title` is the browser's own tooltip: a name cut short after three
+            lines (see styles.css) can be read in full by pointing at it. */}
+        <span className="entry-name" title={title}>
+          {entry.recipeId ? (
+            // draggable={false}: otherwise the browser starts its own link drag.
+            <Link to={paths.recipe(entry.recipeId)} draggable={false} onClick={openRecipe.onClick}>
+              {title}
+            </Link>
+          ) : (
+            title
+          )}
+        </span>
       </span>
       {editable && (
         <span className="entry-actions">
