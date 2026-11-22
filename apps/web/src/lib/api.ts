@@ -12,6 +12,7 @@ import type {
   MealPlanEntryInput,
   MealPlanMove,
   Recipe,
+  RecipeImport,
   RecipeInput,
   RecipeQuery,
 } from '@art-web/shared';
@@ -82,6 +83,17 @@ export function useSaveRecipe(id?: number) {
       void qc.invalidateQueries({ queryKey: mealPlanKey });
       return qc.invalidateQueries({ queryKey: ['recipes'] });
     },
+  });
+}
+
+/**
+ * Reads a recipe from a page on another site. Nothing is saved: the result
+ * is a draft for the recipe form.
+ */
+export function useImportRecipe() {
+  return useMutation({
+    mutationFn: (url: string) =>
+      request<RecipeImport>('/recipes/import', { method: 'POST', body: JSON.stringify({ url }) }),
   });
 }
 
