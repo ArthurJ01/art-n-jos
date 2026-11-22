@@ -794,6 +794,20 @@ textarea.input {
   .entry:focus-within .entry-actions {
     opacity: 1;
   }
+
+  /*
+   * A mouse changes a meal with a double-click, so the "change" button would
+   * only take room from the meal's name. It is there for touch screens, and
+   * shows up for the keyboard when you tab to the meal.
+   */
+  .entry-action-edit {
+    display: none;
+  }
+
+  .entry:focus-visible .entry-action-edit,
+  .entry:has(:focus-visible) .entry-action-edit {
+    display: inline;
+  }
 }
 
 /* Narrow screens: the recipe list goes on top and the days stack. */

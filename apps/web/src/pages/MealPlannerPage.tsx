@@ -20,6 +20,7 @@ import {
   useMealPlan,
   useMoveMealPlanEntry,
   useRecipes,
+  useUpdateMealPlanEntry,
 } from '../lib/api';
 import {
   addDays,
@@ -35,6 +36,7 @@ import { paths } from '../lib/paths';
 import {
   dragTitle,
   entryItem,
+  isSameItem,
   itemFields,
   mealLabels,
   type DragData,
@@ -88,8 +90,9 @@ export function MealPlannerPage() {
   const recipes = useRecipes({});
   const add = useAddMealPlanEntry();
   const move = useMoveMealPlanEntry();
+  const update = useUpdateMealPlanEntry();
   const remove = useDeleteMealPlanEntry();
-  const saveError = add.error ?? move.error ?? remove.error;
+  const saveError = add.error ?? move.error ?? update.error ?? remove.error;
 
   /** Picked by clicking in the list; the next click on a slot places it. */
   const [selected, setSelected] = useState<PaletteItem | null>(null);
@@ -110,6 +113,22 @@ export function MealPlannerPage() {
       input: { ...slot, ...itemFields(item), isLeftover },
       recipeTitle: item.kind === 'recipe' ? item.title : null,
     });
+
+  /** Swaps a planned meal for something else. It keeps its day, meal and place. */
+  const replaceItem = (entry: MealPlanEntry, item: PaletteItem) => {
+    if (isSameItem(entryItem(entry), item)) return; // nothing changed
+    update.mutate({
+      id: entry.id,
+      input: {
+        date: entry.date,
+        meal: entry.meal,
+        ...itemFields(item),
+        // Eating out can't be a lunch box.
+        isLeftover: entry.isLeftover && item.kind !== 'eat_out',
+      },
+      recipeTitle: item.kind === 'recipe' ? item.title : null,
+    });
+  };
 
   const onDragStart = (event: DragStartEvent) => {
     setDragging(event.active.data.current as DragData);
@@ -208,6 +227,7 @@ export function MealPlannerPage() {
             onPlaceSelected={(slot) => selected && addItem(selected, slot)}
             recipes={recipes.data}
             onAdd={(item, slot) => addItem(item, slot)}
+            onReplace={replaceItem}
             onMakeLeftover={onMakeLeftover}
             onRemove={(entry) => remove.mutate(entry.id)}
           />
