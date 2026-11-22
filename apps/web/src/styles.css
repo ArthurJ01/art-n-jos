@@ -343,45 +343,357 @@ textarea.input {
 }
 
 /* ---- Recipe page ---- */
-.recipe .back {
-  display: inline-block;
-  color: var(--muted);
+.recipe-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
   margin-bottom: 1rem;
+}
+
+.recipe .back {
+  color: var(--muted);
   font-size: 0.9rem;
 }
 
+.recipe-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.recipe-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1rem;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+/* "45 MIN", "4 PORTIONER": small capitals, like the facts under a cookbook title. */
+.recipe-fact {
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.recipe-fact-detail {
+  color: var(--muted);
+  font-weight: 400;
+}
+
 .lead {
+  max-width: 44rem;
   font-size: 1.1rem;
   color: var(--muted);
   margin: 0 0 1rem;
 }
 
+.recipe-byline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+/* What you need on the left, what to do on the right. */
 .recipe-body {
   display: grid;
-  grid-template-columns: 1fr 1.6fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.7fr);
   gap: 2.5rem;
+  align-items: start;
   margin-top: 2rem;
 }
 
-.ingredients,
-.steps {
-  padding-left: 1.2rem;
+.recipe h2 {
+  margin: 0 0 1rem;
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  text-transform: none;
+  color: var(--text);
+}
+
+/* A heading inside the ingredients or the steps: "Sås:" */
+.group-heading {
+  margin: 1.25rem 0 0.5rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.ingredients-panel {
+  padding: 1.25rem;
+  background: var(--surface-2);
+  border-radius: var(--radius);
+}
+
+/* "− 4 port +" */
+.stepper {
+  display: inline-flex;
+  align-items: stretch;
+  margin-bottom: 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.stepper-button {
+  width: 2.75rem;
+  min-height: 2.75rem;
+  background: none;
+  border: 0;
+  border-radius: var(--radius);
+  color: var(--text);
+  font: inherit;
+  font-size: 1.25rem;
+  cursor: pointer;
+}
+
+.stepper-button:hover:not(:disabled) {
+  background: var(--surface-hover);
+}
+
+.stepper-button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.stepper-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.stepper-value {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 5rem;
+  border-inline: 1px solid var(--border);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+/* A list of rows to tick off, drawn as one card. */
+.tick-list {
   margin: 0;
+  padding: 0;
+  list-style: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
 }
 
-.ingredients li,
-.steps li {
-  margin-bottom: 0.5rem;
+.tick-list li + li {
+  border-top: 1px solid var(--border);
 }
 
-.steps li::marker {
+.tick-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.7rem 0.85rem;
+  cursor: pointer;
+}
+
+/*
+ * A round tick box. The real checkbox is still there, so the keyboard and
+ * screen readers work as usual: "appearance: none" only removes the drawing
+ * the browser does, and the tick is drawn with ::before instead.
+ */
+.tick {
+  appearance: none;
+  display: grid;
+  place-content: center;
+  flex-shrink: 0;
+  width: 1.3rem;
+  height: 1.3rem;
+  margin: 0;
+  background: var(--surface);
+  border: 1.5px solid var(--border-strong);
+  border-radius: 50%;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+}
+
+.tick::before {
+  content: '';
+  width: 0.7rem;
+  height: 0.7rem;
+  background: var(--accent-text);
+  /* The shape of a tick mark. */
+  clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+  transform: scale(0);
+  transition: transform 0.1s;
+}
+
+.tick:checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.tick:checked::before {
+  transform: scale(1);
+}
+
+.tick:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.ingredient-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.92rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+/* Ingredients are typed in lower case ("2 dl grädde") but listed as names. */
+.ingredient-name::first-letter {
+  text-transform: uppercase;
+}
+
+.ingredient-amount {
+  font-size: 0.92rem;
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* Ticked off: taken out of the cupboard, or done with this step. */
+.tick-row:has(.tick:checked) .ingredient-name,
+.tick-row:has(.tick:checked) .ingredient-amount {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.ingredients-footnote {
+  margin: 0.85rem 0 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+/* "Håll skärmen tänd" */
+.switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin-bottom: 1.5rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* The real checkbox is invisible but still there; the track next to it is what you see. */
+.switch-input {
+  position: absolute;
+  opacity: 0;
+}
+
+.switch-track {
+  position: relative;
+  width: 2.75rem;
+  height: 1.55rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  transition: background 0.15s;
+}
+
+.switch-track::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: calc(1.55rem - 6px);
+  height: calc(1.55rem - 6px);
+  background: var(--muted);
+  border-radius: 50%;
+  transition:
+    transform 0.15s,
+    background 0.15s;
+}
+
+.switch-input:checked + .switch-track {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.switch-input:checked + .switch-track::after {
+  background: var(--accent-text);
+  transform: translateX(1.2rem);
+}
+
+.switch-input:focus-visible + .switch-track {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.step {
+  position: relative;
+}
+
+/* A dotted line from each tick box down to the next, like a timeline. */
+.step:not(:last-child)::before {
+  content: '';
+  position: absolute;
+  top: 2.3rem;
+  bottom: -0.4rem;
+  left: calc(0.65rem - 1px);
+  border-left: 2px dotted var(--border-strong);
+}
+
+.step-row {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  gap: 0.75rem;
+  align-items: start;
+  padding: 0.65rem 0;
+  cursor: pointer;
+}
+
+.step-row .tick {
+  margin-top: 0.15rem;
+}
+
+.step-number {
+  min-width: 1.4rem;
   color: var(--accent);
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 
-.recipe-footer {
+.step-row:has(.tick:checked) .step-number,
+.step-row:has(.tick:checked) .step-text {
+  color: var(--muted);
+}
+
+.recipe-tips {
   margin-top: 2rem;
-  font-size: 0.9rem;
+  padding: 1.1rem 1.25rem;
+  background: var(--accent-soft);
+  border-radius: var(--radius);
+}
+
+.recipe-tips h2 {
+  margin-bottom: 0.4rem;
+  font-size: 1.15rem;
+}
+
+.recipe-tips p {
+  margin: 0;
+  /* Keep the line breaks that were typed. */
+  white-space: pre-line;
 }
 
 .actions {
@@ -402,6 +714,157 @@ textarea.input {
   max-width: 380px;
 }
 
+/* The recipe builder needs the whole width for its two columns. */
+.form-wide {
+  max-width: none;
+}
+
+/* ---- Recipe builder ---- */
+.builder {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.builder h1 {
+  margin: 0;
+}
+
+/* "Hämta från en länk" */
+.import-box {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 1rem 1.1rem;
+  background: var(--surface-2);
+  border-radius: var(--radius);
+}
+
+.import-box label {
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.import-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.import-box p {
+  margin: 0.4rem 0 0;
+  font-size: 0.9rem;
+}
+
+/* Ingredients on the left and steps on the right, like the recipe page. */
+.builder-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+/* A list of rows to type in (RowListEditor). A fieldset without its usual box. */
+.row-editor {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.row-editor legend {
+  margin-bottom: 0.35rem;
+  padding: 0;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.editor-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.editor-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.35rem;
+}
+
+.editor-row-number {
+  flex-shrink: 0;
+  min-width: 1.5rem;
+  padding-top: 0.55rem;
+  color: var(--accent);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* "textarea" in front to win over the resize handle of textarea.input. */
+textarea.editor-row-input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.5rem 0.65rem;
+  /* It grows with its text instead (see GrowingTextarea). */
+  resize: none;
+  overflow: hidden;
+}
+
+.editor-row-heading .editor-row-input {
+  background: var(--surface-2);
+  font-weight: 600;
+}
+
+.editor-row-buttons {
+  display: flex;
+  flex-shrink: 0;
+}
+
+.icon-button {
+  width: 1.9rem;
+  height: 2.5rem;
+  padding: 0;
+  background: none;
+  border: 0;
+  border-radius: 6px;
+  color: var(--muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.icon-button:hover:not(:disabled) {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.icon-button:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.icon-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.editor-add {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.6rem;
+}
+
+@media (max-width: 720px) {
+  .builder-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .import-row {
+    flex-direction: column;
+  }
+}
+
 .form label {
   display: flex;
   flex-direction: column;
@@ -416,11 +879,18 @@ textarea.input {
   gap: 1rem;
 }
 
-@media (max-width: 640px) {
+/* Narrow screens: the ingredients go on top of the steps. */
+@media (max-width: 720px) {
   .recipe-body {
-    grid-template-columns: 1fr;
-    gap: 1rem;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1.75rem;
   }
+
+  .ingredients-panel {
+    /* A little wider than the text, towards the edges of the screen. */
+    margin: 0 -0.5rem;
+  }
+
   h1 {
     font-size: 1.6rem;
   }
@@ -793,6 +1263,20 @@ textarea.input {
   .entry:hover .entry-actions,
   .entry:focus-within .entry-actions {
     opacity: 1;
+  }
+
+  /*
+   * A mouse changes a meal with a double-click, so the "change" button would
+   * only take room from the meal's name. It is there for touch screens, and
+   * shows up for the keyboard when you tab to the meal.
+   */
+  .entry-action-edit {
+    display: none;
+  }
+
+  .entry:focus-visible .entry-action-edit,
+  .entry:has(:focus-visible) .entry-action-edit {
+    display: inline;
   }
 }
 

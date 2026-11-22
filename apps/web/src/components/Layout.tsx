@@ -1,4 +1,12 @@
-import { Link, NavLink, Outlet, useLocation, useMatches, useNavigate } from 'react-router';
+import {
+  Link,
+  NavLink,
+  Outlet,
+  ScrollRestoration,
+  useLocation,
+  useMatches,
+  useNavigate,
+} from 'react-router';
 import { useHealth, useLogout, useMe } from '../lib/api';
 import { paths } from '../lib/paths';
 
@@ -56,6 +64,9 @@ export function Layout() {
       <main className="main">
         <Outlet />
       </main>
+      {/* A new page starts at the top, and "back" returns to where you were.
+          Without this the scroll position stays put between pages. */}
+      <ScrollRestoration />
     </div>
   );
 }

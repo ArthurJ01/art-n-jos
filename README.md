@@ -33,6 +33,7 @@ A small full-stack web app for collecting recipes. It also works as a practice p
 │   │   │   ├── env.ts       validated environment variables
 │   │   │   ├── db/          schema, client, migrate & seed scripts
 │   │   │   ├── routes/      /api/recipes, /api/meal-plan, /api/auth
+│   │   │   ├── import/      reads a recipe from a link to another site
 │   │   │   └── middleware/  auth + error handling
 │   │   ├── drizzle/         generated SQL migrations (commit these!)
 │   │   └── test/            API integration tests
@@ -58,7 +59,7 @@ npm install                 # install everything (all workspaces)
 cp .env.example .env        # local config. Edit APP_PASSWORD if you like
 psql -U postgres -f scripts/setup-local-db.sql   # once: creates the artweb login and databases
 npm run db:migrate          # create the tables
-npm run db:seed             # (optional) add two example recipes
+npm run db:seed             # (optional) add a few example recipes
 npm run dev                 # API on :3000 + web on :5173
 ```
 

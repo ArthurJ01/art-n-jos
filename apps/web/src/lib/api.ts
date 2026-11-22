@@ -12,6 +12,7 @@ import type {
   MealPlanEntryInput,
   MealPlanMove,
   Recipe,
+  RecipeImport,
   RecipeInput,
   RecipeQuery,
 } from '@art-web/shared';
@@ -82,6 +83,17 @@ export function useSaveRecipe(id?: number) {
       void qc.invalidateQueries({ queryKey: mealPlanKey });
       return qc.invalidateQueries({ queryKey: ['recipes'] });
     },
+  });
+}
+
+/**
+ * Reads a recipe from a page on another site. Nothing is saved: the result
+ * is a draft for the recipe form.
+ */
+export function useImportRecipe() {
+  return useMutation({
+    mutationFn: (url: string) =>
+      request<RecipeImport>('/recipes/import', { method: 'POST', body: JSON.stringify({ url }) }),
   });
 }
 
@@ -158,27 +170,41 @@ function useMealPlanMutation<TVars, TData>(
 let nextTempId = -1;
 export const isSavedEntry = (entry: MealPlanEntry) => entry.id > 0;
 
+/** recipeTitle is only used to show the entry before the server has answered. */
+interface EntryVars {
+  input: MealPlanEntryInput;
+  recipeTitle: string | null;
+}
+
+/** What an entry will look like once the server has saved `input`. */
+const optimisticEntry = (id: number, { input, recipeTitle }: EntryVars): MealPlanEntry => ({
+  id,
+  date: input.date,
+  meal: input.meal,
+  kind: input.kind,
+  recipeId: input.recipeId ?? null,
+  recipeTitle,
+  title: input.title ?? null,
+  isLeftover: input.isLeftover ?? false,
+});
+
 export function useAddMealPlanEntry() {
   return useMealPlanMutation(
-    // recipeTitle is only used to show the entry before the server has answered.
-    ({ input }: { input: MealPlanEntryInput; recipeTitle: string | null }) =>
+    ({ input }: EntryVars) =>
       request<MealPlanEntry>('/meal-plan', { method: 'POST', body: JSON.stringify(input) }),
-    (entries, { input, recipeTitle }, { from, to }) =>
-      input.date < from || input.date > to
+    (entries, vars, { from, to }) =>
+      vars.input.date < from || vars.input.date > to
         ? entries
-        : [
-            ...entries,
-            {
-              id: nextTempId--,
-              date: input.date,
-              meal: input.meal,
-              kind: input.kind,
-              recipeId: input.recipeId ?? null,
-              recipeTitle,
-              title: input.title ?? null,
-              isLeftover: input.isLeftover ?? false,
-            },
-          ],
+        : [...entries, optimisticEntry(nextTempId--, vars)],
+  );
+}
+
+/** Replaces what an entry is (another recipe, another name); it keeps its id and place. */
+export function useUpdateMealPlanEntry() {
+  return useMealPlanMutation(
+    ({ id, input }: EntryVars & { id: number }) =>
+      request<MealPlanEntry>(`/meal-plan/${id}`, { method: 'PUT', body: JSON.stringify(input) }),
+    (entries, vars) => entries.map((e) => (e.id === vars.id ? optimisticEntry(vars.id, vars) : e)),
   );
 }
 
