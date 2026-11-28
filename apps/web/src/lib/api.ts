@@ -7,6 +7,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
   ApiError,
+  AuthStatus,
   HealthResponse,
   MealPlanEntry,
   MealPlanEntryInput,
@@ -227,18 +228,27 @@ export function useDeleteMealPlanEntry() {
 export function useMe() {
   return useQuery({
     queryKey: keys.me,
-    queryFn: () => request<{ authenticated: boolean }>('/auth/me'),
+    queryFn: () => request<AuthStatus>('/auth/me'),
   });
 }
 
-export function useLogin() {
+/** Step one of logging in: asks the server to email a code to the address. */
+export function useRequestCode() {
+  return useMutation({
+    mutationFn: (email: string) =>
+      request<{ sent: boolean }>('/auth/request-code', {
+        method: 'POST',
+        body: JSON.stringify({ email }),
+      }),
+  });
+}
+
+/** Step two: swaps the emailed code for a session. */
+export function useVerifyCode() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (password: string) =>
-      request<{ authenticated: boolean }>('/auth/login', {
-        method: 'POST',
-        body: JSON.stringify({ password }),
-      }),
+    mutationFn: (login: { email: string; code: string }) =>
+      request<AuthStatus>('/auth/verify-code', { method: 'POST', body: JSON.stringify(login) }),
     onSuccess: (data) => qc.setQueryData(keys.me, data),
   });
 }
@@ -246,7 +256,7 @@ export function useLogin() {
 export function useLogout() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: () => request<{ authenticated: boolean }>('/auth/logout', { method: 'POST' }),
+    mutationFn: () => request<AuthStatus>('/auth/logout', { method: 'POST' }),
     onSuccess: (data) => qc.setQueryData(keys.me, data),
   });
 }

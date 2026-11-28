@@ -14,7 +14,10 @@ import type { Db } from './db/client.js';
 import { authRouter } from './routes/auth.js';
 import { recipesRouter } from './routes/recipes.js';
 import { mealPlanRouter } from './routes/meal-plan.js';
+import { requireAuth } from './middleware/auth.js';
 import { errorHandler, notFound } from './middleware/errors.js';
+import { createLoginCodes } from './auth/login-codes.js';
+import { createSendLoginCode, type SendLoginCode } from './auth/mailer.js';
 import { fetchPage as fetchPageFromWeb, type FetchPage } from './import/fetch-page.js';
 
 // The site is in Swedish, so Zod's built-in validation messages should be too.
@@ -26,13 +29,21 @@ interface AppDeps {
   logger: Logger;
   /** Downloads a page for the recipe import. Tests pass a fake, to stay off the internet. */
   fetchPage?: FetchPage;
+  /** Emails a login code. Tests pass a fake here too. */
+  sendLoginCode?: SendLoginCode;
 }
 
 /**
  * Builds the Express app. Kept separate from index.ts (which starts listening)
  * so tests can create an app without opening a port.
  */
-export function createApp({ env, db, logger, fetchPage = fetchPageFromWeb }: AppDeps) {
+export function createApp({
+  env,
+  db,
+  logger,
+  fetchPage = fetchPageFromWeb,
+  sendLoginCode = createSendLoginCode(env, logger),
+}: AppDeps) {
   const app = express();
   const isProd = env.NODE_ENV === 'production';
 
@@ -65,7 +76,19 @@ export function createApp({ env, db, logger, fetchPage = fetchPageFromWeb }: App
     res.status(dbStatus === 'up' ? 200 : 503).json(body);
   });
 
-  api.use('/auth', authRouter({ password: env.APP_PASSWORD, secureCookies: isProd }));
+  api.use(
+    '/auth',
+    authRouter({
+      allowedEmails: env.ALLOWED_EMAILS,
+      codes: createLoginCodes(db, env.SESSION_SECRET),
+      sendLoginCode,
+      secureCookies: isProd,
+    }),
+  );
+
+  // Everything below this line needs a login: the whole site is private.
+  // Only the health check and the login routes above are open.
+  api.use(requireAuth(env.ALLOWED_EMAILS));
   api.use('/recipes', recipesRouter(db, { fetchPage }));
   api.use('/meal-plan', mealPlanRouter(db));
   api.use(notFound);

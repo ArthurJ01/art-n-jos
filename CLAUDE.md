@@ -55,10 +55,10 @@ CI runs exactly these checks, so run them before saying something works.
 - **Import from a link:** `POST /api/recipes/import` returns a draft and saves nothing. `apps/api/src/import/fetch-page.ts` downloads the page and is the guard against SSRF (public addresses only, checked inside the connection; read its header comment before changing it). `extract.ts` reads the page's schema.org JSON-LD. That data has the ingredients as one flat list, so `groups.ts` adds the group headings ("Sås:") by finding the ingredients in the visible page and taking the `<h1>`–`<h6>` headings that stand between them. It goes by position, not by any site's class names. `createApp` takes `fetchPage` as a dependency, and tests always pass a fake, so no test touches the internet.
 - **DB changes:** edit `apps/api/src/db/schema.ts`, run `npm run db:generate`, read the generated SQL, then commit the schema and the `apps/api/drizzle/*` files together. Migrations run _before_ new code goes live, so keep them backwards-compatible: add first, and rename or drop in a later deploy.
 - Express 5: async route errors reach `middleware/errors.ts` automatically. Throw `HttpError(status, msg)` for expected errors.
-- Auth is a shared password (`APP_PASSWORD`) that sets a signed httpOnly cookie. GET routes are public; writes use `requireAuth`.
+- **The whole site is behind a login.** You log in with an email address from `ALLOWED_EMAILS` and a six-digit code that is emailed to it (`POST /api/auth/request-code`, then `/verify-code`), which sets a signed httpOnly cookie holding the address. In `app.ts`, everything after `api.use(requireAuth(...))` needs that cookie; only `/api/health` and `/api/auth/*` are open. New routes go below that line. `apps/api/src/auth/login-codes.ts` has the rules (10 minutes, 5 guesses per code, 5 codes per address per hour) and keeps them in the `login_codes` table, because in-memory limits don't hold on Vercel. `createApp` takes `sendLoginCode` as a dependency, and tests pass a fake, so no test sends email. In the web app, `RequireAuth` wraps every route except the login page.
 - Tests: Vitest. API tests hit a real Postgres (`TEST_DATABASE_URL`, default `localhost:5432/artweb_test`).
 - Prettier (single quotes, width 100) and ESLint flat config. Don't hand-format; run `npm run format`.
-- Git identity for this repo is Arthur's GitHub noreply email. Never commit his real email or any secrets.
+- Git identity for this repo is Arthur's GitHub noreply email. Never commit his real email or any secrets. That includes the addresses in `ALLOWED_EMAILS`: tests and examples use `@example.com`.
 
 ## Deploy pipeline
 
@@ -84,7 +84,7 @@ Vercel's own git auto-deploy is **off** (`git.deploymentEnabled: false`). Only G
 
 - **GitHub repo:** secret `VERCEL_TOKEN` (team-scoped); variables `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`, `DEPLOY_ENABLED=true`.
 - **GitHub environments `dev` / `production`:** secret `DATABASE_URL` (Neon **direct** string, used for migrations); variable `APP_URL`.
-- **Vercel project env** (Production and Preview): `DATABASE_URL` (Neon **pooled** string), `APP_PASSWORD`, `SESSION_SECRET`, `APP_ENV` (`prod`/`dev`).
+- **Vercel project env** (Production and Preview): `DATABASE_URL` (Neon **pooled** string), `ALLOWED_EMAILS`, `SESSION_SECRET`, `APP_ENV` (`prod`/`dev`), and `SMTP_HOST`, `SMTP_USER`, `SMTP_PASS` for the login emails (a Gmail account with an app password).
 - **Neon:** project `art-n-jos`, AWS Frankfurt, branches `production` (default) and `dev` (never auto-deletes). Postgres 18 (CI uses 16; local can be any 16+).
 
 ## Decisions and gotchas
@@ -98,5 +98,7 @@ Vercel's own git auto-deploy is **off** (`git.deploymentEnabled: false`). Only G
 - **Dependabot:** PRs target `dev`. Don't merge TypeScript or @types/node major bumps without checking the tooling. Keep @types/node on 22.x.
 - **Local database:** a natively installed Postgres (16+), set up once with `scripts/setup-local-db.sql`. CI gets its own throwaway Postgres through the `services:` block in `ci.yml`.
 - **Recipe import depends on the other site:** it needs a schema.org `Recipe` in the page's HTML. Arla and ICA have one. Köket builds its page in the browser, so only the title and description come along. A site may also refuse requests from Vercel's servers that work from a home connection. When an import fails, the user sees a short message and the real reason is in the API log (`Recipe import: could not fetch the page`). The fetch gives up after 15 s, which has to stay under the function's `maxDuration` (30 s, in `vercel.json`).
+- **Login emails go through Gmail's SMTP server** (`apps/api/src/auth/mailer.ts`, nodemailer). Services like Resend only send to other people from a domain you own, and the domain isn't bought yet. Without `SMTP_HOST` the code is written to the API log, which is how local dev works; in production the API refuses to start without the SMTP settings.
+- **Only the data is locked, not the app's files.** The React bundle is static files on Vercel's CDN, so anyone can download the empty shell. Recipes and plans come from the API, which answers 401 without a session.
 - **undici is pinned to 7.x** (`apps/api`): it is the HTTP client behind Node's `fetch`, used directly for its `lookup` hook. 8.x needs Node 22.19 or newer.
 - **Planned domain:** jos-n-art.com, not bought yet. See `docs/SETUP.md` step 6.

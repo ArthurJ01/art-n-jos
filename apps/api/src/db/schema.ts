@@ -50,6 +50,25 @@ export const recipes = pgTable(
 export type RecipeRow = typeof recipes.$inferSelect;
 
 /**
+ * Login codes that have been emailed and not used yet. A row is short-lived:
+ * it is deleted when the code is used, or an hour after it was made.
+ */
+export const loginCodes = pgTable(
+  'login_codes',
+  {
+    id: serial('id').primaryKey(),
+    email: text('email').notNull(),
+    // Never the code itself, so reading this table is not enough to log in.
+    codeHash: text('code_hash').notNull(),
+    // How many times someone has tried to guess this code.
+    attempts: integer('attempts').notNull().default(0),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('login_codes_email_idx').on(t.email)],
+);
+
+/**
  * One thing planned for one meal on one day. A slot (say Tuesday dinner) can
  * hold several entries, so there is no unique constraint on (date, meal).
  */
