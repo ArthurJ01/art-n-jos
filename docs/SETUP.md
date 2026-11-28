@@ -47,6 +47,7 @@ Already done: the code is at https://github.com/ArthurJ01/art-n-jos and CI runs 
    | ---------------- | -------------------------------- | --------------------------- |
    | `DATABASE_URL`   | prod-**pooled** string           | dev-**pooled** string       |
    | `ALLOWED_EMAILS` | who can log in, comma-separated  | the same                    |
+   | `LOGIN_PIN`      | six digits of your choice        | the same, or another        |
    | `SESSION_SECRET` | a random string (see below)      | a _different_ random string |
    | `APP_ENV`        | `prod`                           | `dev`                       |
    | `SMTP_HOST`      | `smtp.gmail.com`                 | the same                    |
@@ -59,7 +60,9 @@ Already done: the code is at https://github.com/ArthurJ01/art-n-jos and CI runs 
    node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
    ```
 
-   **Login emails.** You log in with your email address and a six-digit code that is sent to it. Only the addresses in `ALLOWED_EMAILS` get a code. The codes are sent through a Gmail account, which is free and needs no domain:
+   **Logging in.** You type your email address and then six digits: either the PIN (`LOGIN_PIN`, the same for everyone, and optional: leave it out and only emailed codes work), or a code that is sent to the address. The PIN is the weaker of the two, because it never changes. What protects it is that an address gets five guesses an hour, after which only an emailed code works for that address. So don't pick `123456` or a birthday.
+
+   **Login emails.** Only the addresses in `ALLOWED_EMAILS` get a code. The codes are sent through a Gmail account, which is free and needs no domain:
    1. On that Google account, turn on **2-Step Verification** (https://myaccount.google.com/security). App passwords don't exist without it.
    2. Create an app password at https://myaccount.google.com/apppasswords (name it `art-n-jos`). Google shows 16 letters once. That is `SMTP_PASS`; paste it without the spaces.
    3. `SMTP_USER` is the account's address. The codes arrive from that address.
@@ -144,6 +147,7 @@ Every change goes into `dev` first (deploys the dev site), and `main` only takes
 | "Pull Vercel project settings" fails   | `VERCEL_TOKEN`, `VERCEL_ORG_ID` or `VERCEL_PROJECT_ID` is wrong or missing.                                                                                                                                                                                                                                   |
 | Site loads but recipes don't (API 500) | **Vercel → Project → Logs**. Usually a missing env var; the app prints exactly which one. Env vars only apply to _new_ deploys, so re-run the workflow after changing them.                                                                                                                                   |
 | "Point the dev address…" fails         | The `APP_URL` name is taken by someone else on `vercel.app`. Pick another name, e.g. `art-n-jos-dev-arthur.vercel.app`.                                                                                                                                                                                       |
+| "För många felaktiga koder"            | The PIN is locked for that address for up to an hour after five wrong codes. Log in with a code by email instead.                                                                                                                                                                                             |
 | No login code arrives                  | Check spam first. Then: is the address in `ALLOWED_EMAILS` for that environment? (The site answers the same either way, on purpose.) After five codes in an hour an address gets no more for a while. If sending failed, **Vercel → Logs** has `Login: could not send the code`, usually a wrong `SMTP_PASS`. |
 
 **Rolling back:** Vercel → Project → **Deployments** → pick an earlier production deploy → **⋯ → Instant Rollback**.

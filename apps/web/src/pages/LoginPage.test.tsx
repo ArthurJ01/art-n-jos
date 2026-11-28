@@ -12,13 +12,13 @@ const CODE = '042137';
  * A fake API with the two login steps. Returns what the page has sent, so a
  * test can check it. The "session" is just a variable here.
  */
-function fakeApi({ authenticated = false } = {}) {
+function fakeApi({ authenticated = false, pinLogin = false } = {}) {
   const sent: { path: string; body: unknown }[] = [];
   vi.stubGlobal('fetch', (url: string, init: RequestInit = {}) => {
     const path = url.replace('/api', '');
     const json = (body: unknown, status = 200) =>
       Promise.resolve(new Response(JSON.stringify(body), { status }));
-    if (path === '/auth/me') return json({ authenticated });
+    if (path === '/auth/me') return json({ authenticated, pinLogin });
 
     const body = JSON.parse(init.body as string) as { email: string; code?: string };
     sent.push({ path, body });
@@ -26,7 +26,7 @@ function fakeApi({ authenticated = false } = {}) {
     if (path === '/auth/verify-code') {
       if (body.code !== CODE) return json({ error: 'Fel kod, eller så har den gått ut' }, 401);
       authenticated = true;
-      return json({ authenticated });
+      return json({ authenticated, pinLogin });
     }
     return json({ error: 'Hittades inte' }, 404);
   });
@@ -94,6 +94,40 @@ describe('login', () => {
     await user.click(screen.getByRole('button', { name: 'Börja om' }));
     // The address is still filled in, ready to ask for a new code.
     expect(screen.getByLabelText('E-post')).toHaveValue('art@example.com');
+  });
+
+  it('logs in with the PIN instead, without asking for an email', async () => {
+    const sent = fakeApi({ pinLogin: true });
+    const user = userEvent.setup();
+    renderApp('/recept/3');
+
+    await user.type(await screen.findByLabelText('E-post'), 'art@example.com');
+    await user.click(screen.getByRole('button', { name: 'Använd PIN-kod' }));
+    await user.type(screen.getByLabelText('PIN-kod'), CODE);
+    await user.click(screen.getByRole('button', { name: 'Logga in' }));
+
+    expect(await screen.findByText('Ett hemligt recept')).toBeInTheDocument();
+    // No code was requested, so no email was sent.
+    expect(sent).toEqual([
+      { path: '/auth/verify-code', body: { email: 'art@example.com', code: CODE } },
+    ]);
+  });
+
+  it('wants an address before the PIN', async () => {
+    fakeApi({ pinLogin: true });
+    const user = userEvent.setup();
+    renderApp('/logga-in');
+
+    await user.click(await screen.findByRole('button', { name: 'Använd PIN-kod' }));
+    expect(screen.queryByLabelText('PIN-kod')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('E-post')).toBeInvalid();
+  });
+
+  it('offers no PIN on a site without one', async () => {
+    fakeApi();
+    renderApp('/logga-in');
+    await screen.findByLabelText('E-post');
+    expect(screen.queryByRole('button', { name: 'Använd PIN-kod' })).not.toBeInTheDocument();
   });
 
   it('skips the login page for someone who is already logged in', async () => {

@@ -33,7 +33,7 @@ A small full-stack web app for collecting recipes. It also works as a practice p
 │   │   │   ├── env.ts       validated environment variables
 │   │   │   ├── db/          schema, client, migrate & seed scripts
 │   │   │   ├── routes/      /api/recipes, /api/meal-plan, /api/auth
-│   │   │   ├── auth/        login codes: making, checking and emailing them
+│   │   │   ├── auth/        login: emailed codes and the fixed PIN
 │   │   │   ├── import/      reads a recipe from a link to another site
 │   │   │   └── middleware/  auth + error handling
 │   │   ├── drizzle/         generated SQL migrations (commit these!)
@@ -66,7 +66,7 @@ npm run dev                 # API on :3000 + web on :5173
 
 On Windows the PostgreSQL installer doesn't add `psql` to your PATH. Use the full path instead, e.g. `& "C:\Program Files\PostgreSQL\17\bin\psql.exe" -U postgres -f scripts/setup-local-db.sql` in PowerShell.
 
-Open http://localhost:5173 and log in with an address from `ALLOWED_EMAILS` in your `.env`. The whole site is behind the login. Locally no email is sent: the six-digit code is printed in the terminal running `npm run dev` (look for `SMTP_HOST is not set`).
+Open http://localhost:5173 and log in with an address from `ALLOWED_EMAILS` in your `.env`. The whole site is behind the login. Then either choose **Använd PIN-kod** and type the `LOGIN_PIN` from your `.env`, or choose **Skicka kod**. Locally no email is sent: the six-digit code is printed in the terminal running `npm run dev` (look for `SMTP_HOST is not set`).
 
 ### Useful scripts (run from the repo root)
 

@@ -2,7 +2,8 @@ import { eq, sql } from 'drizzle-orm';
 import request from 'supertest';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { MAX_ATTEMPTS, MAX_CODES_PER_HOUR } from '../src/auth/login-codes.js';
-import { loginCodes } from '../src/db/schema.js';
+import { MAX_PIN_ATTEMPTS_PER_HOUR } from '../src/auth/login-pin.js';
+import { loginCodes, pinAttempts } from '../src/db/schema.js';
 import { createTestApp, OTHER_TEST_EMAIL, TEST_EMAIL } from './helpers.js';
 
 type TestApp = ReturnType<typeof createTestApp>;
@@ -20,6 +21,7 @@ let t: TestApp;
 beforeEach(async () => {
   t = newApp();
   await t.db.delete(loginCodes);
+  await t.db.delete(pinAttempts);
 });
 
 afterEach(async () => {
@@ -48,7 +50,7 @@ describe('login', () => {
 
     await request(t.app).get('/api/health').expect(200);
     const me = await request(t.app).get('/api/auth/me').expect(200);
-    expect(me.body).toEqual({ authenticated: false });
+    expect(me.body).toEqual({ authenticated: false, pinLogin: false });
   });
 
   it('logs in with the code that was sent to the address', async () => {
@@ -60,7 +62,7 @@ describe('login', () => {
     await agent.post('/api/auth/verify-code').send({ email: TEST_EMAIL, code }).expect(200);
 
     const me = await agent.get('/api/auth/me').expect(200);
-    expect(me.body).toEqual({ authenticated: true });
+    expect(me.body).toEqual({ authenticated: true, pinLogin: false });
     await agent.get('/api/recipes').expect(200);
   });
 
@@ -172,5 +174,84 @@ describe('login', () => {
       .get('/api/recipes')
       .set('Cookie', `session=s%3A${encodeURIComponent(TEST_EMAIL)}.forged`)
       .expect(401);
+  });
+});
+
+describe('login with the fixed PIN', () => {
+  const PIN = '424242';
+  const WRONG_PIN = '000000';
+
+  // The same as in the tests above, but for an app that has a PIN.
+  beforeEach(() => {
+    t = newApp({ pin: PIN });
+  });
+
+  it('logs in with the PIN, without any email', async () => {
+    const before = await request(t.app).get('/api/auth/me').expect(200);
+    expect(before.body).toEqual({ authenticated: false, pinLogin: true });
+
+    const agent = request.agent(t.app);
+    const res = await agent
+      .post('/api/auth/verify-code')
+      .send({ email: TEST_EMAIL, code: PIN })
+      .expect(200);
+    expect(res.body).toEqual({ authenticated: true, pinLogin: true });
+    await agent.get('/api/recipes').expect(200);
+    expect(t.sentCodes).toEqual([]);
+  });
+
+  it('still logs in with an emailed code', async () => {
+    const code = await emailedCode();
+    await verifyCode(TEST_EMAIL, code).expect(200);
+  });
+
+  it('does not work for an address that is not on the list', async () => {
+    await verifyCode('someone-else@example.com', PIN).expect(401);
+  });
+
+  it('does not exist on a site without a PIN', async () => {
+    await verifyCode(TEST_EMAIL, PIN, newApp()).expect(401);
+  });
+
+  it('locks the PIN after too many wrong guesses, but not the emailed codes', async () => {
+    for (let i = 0; i < MAX_PIN_ATTEMPTS_PER_HOUR; i++) {
+      await verifyCode(TEST_EMAIL, WRONG_PIN).expect(401);
+    }
+    // Now even the right PIN is refused...
+    await verifyCode(TEST_EMAIL, PIN).expect(429);
+    // ...for this address only...
+    await verifyCode(OTHER_TEST_EMAIL, PIN).expect(200);
+    // ...and a code by email still gets you in.
+    const code = await emailedCode(TEST_EMAIL);
+    await verifyCode(TEST_EMAIL, code).expect(200);
+  });
+
+  it('forgets your wrong guesses once you get it right', async () => {
+    for (let round = 0; round < 2; round++) {
+      for (let i = 0; i < MAX_PIN_ATTEMPTS_PER_HOUR - 2; i++) {
+        await verifyCode(TEST_EMAIL, WRONG_PIN).expect(401);
+      }
+      await verifyCode(TEST_EMAIL, PIN).expect(200);
+    }
+  });
+
+  it('answers the same for an address that is not on the list', async () => {
+    // Otherwise the lock would show which addresses have access.
+    const stranger = 'someone-else@example.com';
+    for (let i = 0; i < MAX_PIN_ATTEMPTS_PER_HOUR; i++) {
+      await verifyCode(stranger, WRONG_PIN).expect(401);
+    }
+    await verifyCode(stranger, WRONG_PIN).expect(429);
+  });
+
+  it('does not let a made-up address test whether a PIN guess is right', async () => {
+    // A right guess must not reset the count for an address that can't log
+    // in: the lock arriving later would give the PIN away.
+    const stranger = 'someone-else@example.com';
+    await verifyCode(stranger, PIN).expect(401);
+    for (let i = 1; i < MAX_PIN_ATTEMPTS_PER_HOUR; i++) {
+      await verifyCode(stranger, WRONG_PIN).expect(401);
+    }
+    await verifyCode(stranger, WRONG_PIN).expect(429);
   });
 });

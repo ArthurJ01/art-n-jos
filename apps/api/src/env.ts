@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { LOGIN_CODE_LENGTH } from '@art-web/shared';
 
 /**
  * All configuration comes from environment variables (12-factor style).
@@ -27,6 +28,17 @@ const envSchema = z
           .filter(Boolean),
       )
       .pipe(z.array(z.email()).min(1, 'ALLOWED_EMAILS needs at least one address')),
+    /**
+     * Optional: a fixed PIN that also logs you in, instead of an emailed code.
+     * The same one for everyone on the list.
+     */
+    LOGIN_PIN: z
+      .string()
+      .regex(
+        new RegExp(`^\\d{${LOGIN_CODE_LENGTH}}$`),
+        `LOGIN_PIN must be exactly ${LOGIN_CODE_LENGTH} digits`,
+      )
+      .optional(),
     /** Random string used to sign the session cookie and to hash login codes. */
     SESSION_SECRET: z.string().min(32, 'SESSION_SECRET must be at least 32 characters'),
     /**

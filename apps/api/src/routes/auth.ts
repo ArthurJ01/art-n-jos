@@ -2,6 +2,7 @@ import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import { requestCodeSchema, verifyCodeSchema, type AuthStatus } from '@art-web/shared';
 import type { LoginCodes } from '../auth/login-codes.js';
+import type { PinLogin } from '../auth/login-pin.js';
 import type { SendLoginCode } from '../auth/mailer.js';
 import { HttpError } from '../middleware/errors.js';
 import { SESSION_COOKIE, SESSION_MAX_AGE_MS, sessionEmail } from '../middleware/auth.js';
@@ -10,16 +11,26 @@ interface AuthOptions {
   /** The only addresses that can log in. */
   allowedEmails: readonly string[];
   codes: LoginCodes;
+  /** The fixed PIN, if the site has one. */
+  pin?: PinLogin;
   sendLoginCode: SendLoginCode;
   secureCookies: boolean;
 }
 
 /**
- * Login in two steps: POST /request-code emails a code to the address, and
- * POST /verify-code swaps the code for a session cookie.
+ * Login: POST /verify-code swaps an email address and a six-digit code for a
+ * session cookie. The code is either one that POST /request-code has emailed
+ * to the address, or the site's fixed PIN.
  */
-export function authRouter({ allowedEmails, codes, sendLoginCode, secureCookies }: AuthOptions) {
+export function authRouter({
+  allowedEmails,
+  codes,
+  pin,
+  sendLoginCode,
+  secureCookies,
+}: AuthOptions) {
   const router = Router();
+  const status = (authenticated: boolean): AuthStatus => ({ authenticated, pinLogin: !!pin });
 
   // A first, rough brake per IP address. The limits that really count are per
   // email address and live in the database (see auth/login-codes.ts).
@@ -49,9 +60,19 @@ export function authRouter({ allowedEmails, codes, sendLoginCode, secureCookies 
 
   router.post('/verify-code', verifyLimiter, async (req, res) => {
     const { email, code } = verifyCodeSchema.parse(req.body);
-    if (!allowedEmails.includes(email) || !(await codes.verify(email, code))) {
-      throw new HttpError(401, 'Fel kod, eller så har den gått ut');
+    const mayLogIn = allowedEmails.includes(email);
+
+    // The page has one box for the code, so try it both ways: first as the
+    // emailed code, then as the PIN.
+    let ok = mayLogIn && (await codes.verify(email, code));
+    if (!ok && pin) {
+      const result = await pin.verify(email, code, mayLogIn);
+      if (result === 'locked') {
+        throw new HttpError(429, 'För många felaktiga koder. Logga in med en kod via e-post.');
+      }
+      ok = result === 'ok';
     }
+    if (!ok) throw new HttpError(401, 'Fel kod, eller så har den gått ut');
     res.cookie(SESSION_COOKIE, email, {
       signed: true,
       httpOnly: true,
@@ -59,17 +80,16 @@ export function authRouter({ allowedEmails, codes, sendLoginCode, secureCookies 
       secure: secureCookies,
       maxAge: SESSION_MAX_AGE_MS,
     });
-    res.json({ authenticated: true } satisfies AuthStatus);
+    res.json(status(true));
   });
 
   router.post('/logout', (_req, res) => {
     res.clearCookie(SESSION_COOKIE);
-    res.json({ authenticated: false } satisfies AuthStatus);
+    res.json(status(false));
   });
 
   router.get('/me', (req, res) => {
-    const status: AuthStatus = { authenticated: sessionEmail(req, allowedEmails) !== null };
-    res.json(status);
+    res.json(status(sessionEmail(req, allowedEmails) !== null));
   });
 
   return router;

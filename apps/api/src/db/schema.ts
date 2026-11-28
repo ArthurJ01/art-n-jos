@@ -69,6 +69,20 @@ export const loginCodes = pgTable(
 );
 
 /**
+ * One row per guess at the fixed PIN, kept for an hour, to limit how many
+ * guesses an address gets (see auth/login-pin.ts).
+ */
+export const pinAttempts = pgTable(
+  'pin_attempts',
+  {
+    id: serial('id').primaryKey(),
+    email: text('email').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('pin_attempts_email_idx').on(t.email)],
+);
+
+/**
  * One thing planned for one meal on one day. A slot (say Tuesday dinner) can
  * hold several entries, so there is no unique constraint on (date, meal).
  */

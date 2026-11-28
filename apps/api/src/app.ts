@@ -17,6 +17,7 @@ import { mealPlanRouter } from './routes/meal-plan.js';
 import { requireAuth } from './middleware/auth.js';
 import { errorHandler, notFound } from './middleware/errors.js';
 import { createLoginCodes } from './auth/login-codes.js';
+import { createPinLogin } from './auth/login-pin.js';
 import { createSendLoginCode, type SendLoginCode } from './auth/mailer.js';
 import { fetchPage as fetchPageFromWeb, type FetchPage } from './import/fetch-page.js';
 
@@ -81,6 +82,7 @@ export function createApp({
     authRouter({
       allowedEmails: env.ALLOWED_EMAILS,
       codes: createLoginCodes(db, env.SESSION_SECRET),
+      pin: env.LOGIN_PIN ? createPinLogin(db, env.LOGIN_PIN) : undefined,
       sendLoginCode,
       secureCookies: isProd,
     }),

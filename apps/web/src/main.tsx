@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider } from 'react-router';
+import type { AuthStatus } from '@art-web/shared';
 import { ApiRequestError, keys } from './lib/api';
 import { router } from './router';
 import '@fontsource-variable/fraunces';
@@ -15,7 +16,12 @@ const isLoggedOutError = (error: Error) => error instanceof ApiRequestError && e
  * RequireAuth then shows the login page instead of a page full of errors.
  */
 const onError = (error: Error) => {
-  if (isLoggedOutError(error)) queryClient.setQueryData(keys.me, { authenticated: false });
+  if (!isLoggedOutError(error)) return;
+  queryClient.setQueryData(keys.me, (me: AuthStatus | undefined) => ({
+    pinLogin: false,
+    ...me,
+    authenticated: false,
+  }));
 };
 
 const queryClient = new QueryClient({
