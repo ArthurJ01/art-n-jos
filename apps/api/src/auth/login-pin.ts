@@ -15,21 +15,21 @@ function safeEqual(a: string, b: string) {
 }
 
 /**
- * The fixed PIN (LOGIN_PIN): the other way to log in, for when you'd rather
- * type six digits you know than wait for an email.
+ * The fixed PINs (LOGIN_PINS, one per address): the other way to log in, for
+ * when you'd rather type six digits you know than wait for an email.
  *
- * Unlike an emailed code, the PIN never changes, so the only thing between it
+ * Unlike an emailed code, a PIN never changes, so the only thing between it
  * and someone guessing is the limit above. Like the limits for emailed codes
  * it is kept in the database, because memory is not shared between Vercel's
  * servers.
  */
-export function createPinLogin(db: Db, pin: string) {
+export function createPinLogin(db: Db, pins: ReadonlyMap<string, string>) {
   return {
     /**
      * Checks one guess for one address. `mayLogIn` says whether the address
-     * is on the list. An address that isn't can never get 'ok', but its
-     * guesses are counted all the same, so the answers don't give away which
-     * addresses have access, or whether a guess from a made-up address was right.
+     * is on the list. An address that isn't, or that has no PIN, can never
+     * get 'ok', but its guesses are counted all the same, so the answers
+     * don't give away which addresses have access or a PIN.
      */
     async verify(email: string, guess: string, mayLogIn: boolean): Promise<PinResult> {
       await db.delete(pinAttempts).where(lt(pinAttempts.createdAt, sql`now() - interval '1 hour'`));
@@ -43,7 +43,8 @@ export function createPinLogin(db: Db, pin: string) {
         .where(eq(pinAttempts.email, email));
       if ((made?.count ?? 0) > MAX_PIN_ATTEMPTS_PER_HOUR) return 'locked';
 
-      if (!mayLogIn || !safeEqual(guess, pin)) return 'wrong';
+      const pin = mayLogIn ? pins.get(email) : undefined;
+      if (pin === undefined || !safeEqual(guess, pin)) return 'wrong';
 
       // A successful login wipes the slate, so your own typos don't add up.
       await db.delete(pinAttempts).where(eq(pinAttempts.email, email));

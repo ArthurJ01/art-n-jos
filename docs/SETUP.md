@@ -47,7 +47,7 @@ Already done: the code is at https://github.com/ArthurJ01/art-n-jos and CI runs 
    | ---------------- | -------------------------------- | --------------------------- |
    | `DATABASE_URL`   | prod-**pooled** string           | dev-**pooled** string       |
    | `ALLOWED_EMAILS` | who can log in, comma-separated  | the same                    |
-   | `LOGIN_PIN`      | six digits of your choice        | the same, or another        |
+   | `LOGIN_PINS`     | `address:pin,address:pin`        | the same, or other PINs     |
    | `SESSION_SECRET` | a random string (see below)      | a _different_ random string |
    | `APP_ENV`        | `prod`                           | `dev`                       |
    | `SMTP_HOST`      | `smtp.gmail.com`                 | the same                    |
@@ -60,7 +60,7 @@ Already done: the code is at https://github.com/ArthurJ01/art-n-jos and CI runs 
    node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
    ```
 
-   **Logging in.** You type your email address and then six digits: either the PIN (`LOGIN_PIN`, the same for everyone, and optional: leave it out and only emailed codes work), or a code that is sent to the address. The PIN is the weaker of the two, because it never changes. What protects it is that an address gets five guesses an hour, after which only an emailed code works for that address. So don't pick `123456` or a birthday.
+   **Logging in.** You type your email address and then six digits: either your PIN, or a code that is sent to the address. The PINs are in `LOGIN_PINS`, one per address, written as `you@example.com:123456,partner@example.com:654321`. They are optional: someone without a PIN there logs in with emailed codes only. A PIN is the weaker of the two, because it never changes. What protects it is that an address gets five guesses an hour, after which only an emailed code works for that address. So don't pick `123456` or a birthday. The API refuses to start if an entry is malformed or is for an address that isn't in `ALLOWED_EMAILS`; the log says which entry, by number.
 
    **Login emails.** Only the addresses in `ALLOWED_EMAILS` get a code. The codes are sent through a Gmail account, which is free and needs no domain:
    1. On that Google account, turn on **2-Step Verification** (https://myaccount.google.com/security). App passwords don't exist without it.

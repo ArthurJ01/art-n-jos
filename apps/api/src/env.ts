@@ -1,6 +1,8 @@
 import { z } from 'zod';
 import { LOGIN_CODE_LENGTH } from '@art-web/shared';
 
+const PIN_FORMAT = new RegExp(`^\\d{${LOGIN_CODE_LENGTH}}$`);
+
 /**
  * All configuration comes from environment variables (12-factor style).
  * We validate them once at startup so the app fails fast with a clear message
@@ -29,16 +31,34 @@ const envSchema = z
       )
       .pipe(z.array(z.email()).min(1, 'ALLOWED_EMAILS needs at least one address')),
     /**
-     * Optional: a fixed PIN that also logs you in, instead of an emailed code.
-     * The same one for everyone on the list.
+     * Optional: a fixed PIN per address, which logs that person in without an
+     * emailed code. Written as "address:pin" pairs separated by commas, e.g.
+     * "you@example.com:123456,partner@example.com:654321". Someone without a
+     * PIN here logs in with emailed codes only.
      */
-    LOGIN_PIN: z
+    LOGIN_PINS: z
       .string()
-      .regex(
-        new RegExp(`^\\d{${LOGIN_CODE_LENGTH}}$`),
-        `LOGIN_PIN must be exactly ${LOGIN_CODE_LENGTH} digits`,
-      )
-      .optional(),
+      .default('')
+      .transform((list, ctx) => {
+        const pins = new Map<string, string>();
+        const entries = list.split(',').filter((entry) => entry.trim());
+        entries.forEach((entry, i) => {
+          // The last colon, to be safe: a PIN has none, an address could.
+          const colon = entry.lastIndexOf(':');
+          const email = entry.slice(0, colon).trim().toLowerCase();
+          const pin = entry.slice(colon + 1).trim();
+          if (colon > 0 && z.email().safeParse(email).success && PIN_FORMAT.test(pin)) {
+            pins.set(email, pin);
+          } else {
+            // Say which entry, but never repeat it: this ends up in the logs.
+            ctx.addIssue({
+              code: 'custom',
+              message: `entry ${i + 1} must look like address:pin, with a PIN of ${LOGIN_CODE_LENGTH} digits`,
+            });
+          }
+        });
+        return pins as ReadonlyMap<string, string>;
+      }),
     /** Random string used to sign the session cookie and to hash login codes. */
     SESSION_SECRET: z.string().min(32, 'SESSION_SECRET must be at least 32 characters'),
     /**
@@ -58,6 +78,18 @@ const envSchema = z
       .default('info'),
   })
   .superRefine((env, ctx) => {
+    // A PIN for an address that can't log in is a typo in one of the two
+    // lists. Better to hear about it now than to wonder why the PIN is wrong.
+    [...env.LOGIN_PINS.keys()].forEach((email, i) => {
+      if (!env.ALLOWED_EMAILS.includes(email)) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['LOGIN_PINS'],
+          message: `entry ${i + 1} is for an address that is not in ALLOWED_EMAILS`,
+        });
+      }
+    });
+
     // A deployed site that can't send codes is a site nobody can log in to,
     // so refuse to start instead of finding out at the login page.
     if (env.NODE_ENV !== 'production') return;

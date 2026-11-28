@@ -82,7 +82,7 @@ export function createApp({
     authRouter({
       allowedEmails: env.ALLOWED_EMAILS,
       codes: createLoginCodes(db, env.SESSION_SECRET),
-      pin: env.LOGIN_PIN ? createPinLogin(db, env.LOGIN_PIN) : undefined,
+      pin: env.LOGIN_PINS.size > 0 ? createPinLogin(db, env.LOGIN_PINS) : undefined,
       sendLoginCode,
       secureCookies: isProd,
     }),

@@ -200,7 +200,7 @@ export interface MealPlanEntry {
 
 // ---- Login ----
 // You log in with your email address and a six-digit code: either one that is
-// sent to the address, or the site's fixed PIN.
+// sent to the address, or that person's fixed PIN.
 
 /** Tidied first, so " Anna@Example.com " and "anna@example.com" are the same address. */
 const emailAddress = z.string().trim().toLowerCase().pipe(z.email().max(254));
@@ -219,7 +219,7 @@ export const verifyCodeSchema = z.object({
 
 export interface AuthStatus {
   authenticated: boolean;
-  /** Whether the site has a fixed PIN to log in with, besides the emailed codes. */
+  /** Whether the site has fixed PINs to log in with, besides the emailed codes. */
   pinLogin: boolean;
 }
 

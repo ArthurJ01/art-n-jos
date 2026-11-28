@@ -177,16 +177,17 @@ describe('login', () => {
   });
 });
 
-describe('login with the fixed PIN', () => {
+describe('login with a fixed PIN', () => {
   const PIN = '424242';
+  const OTHER_PIN = '737373';
   const WRONG_PIN = '000000';
 
-  // The same as in the tests above, but for an app that has a PIN.
+  // The same as in the tests above, but for an app where both have a PIN.
   beforeEach(() => {
-    t = newApp({ pin: PIN });
+    t = newApp({ pins: { [TEST_EMAIL]: PIN, [OTHER_TEST_EMAIL]: OTHER_PIN } });
   });
 
-  it('logs in with the PIN, without any email', async () => {
+  it('logs in with your PIN, without any email', async () => {
     const before = await request(t.app).get('/api/auth/me').expect(200);
     expect(before.body).toEqual({ authenticated: false, pinLogin: true });
 
@@ -200,16 +201,28 @@ describe('login with the fixed PIN', () => {
     expect(t.sentCodes).toEqual([]);
   });
 
+  it('gives each address its own PIN', async () => {
+    await verifyCode(TEST_EMAIL, OTHER_PIN).expect(401);
+    await verifyCode(OTHER_TEST_EMAIL, PIN).expect(401);
+    await verifyCode(OTHER_TEST_EMAIL, OTHER_PIN).expect(200);
+  });
+
   it('still logs in with an emailed code', async () => {
     const code = await emailedCode();
     await verifyCode(TEST_EMAIL, code).expect(200);
+  });
+
+  it('leaves someone without a PIN with the emailed codes', async () => {
+    const onlyOneHasPin = newApp({ pins: { [TEST_EMAIL]: PIN } });
+    await verifyCode(OTHER_TEST_EMAIL, PIN, onlyOneHasPin).expect(401);
+    await verifyCode(TEST_EMAIL, PIN, onlyOneHasPin).expect(200);
   });
 
   it('does not work for an address that is not on the list', async () => {
     await verifyCode('someone-else@example.com', PIN).expect(401);
   });
 
-  it('does not exist on a site without a PIN', async () => {
+  it('does not exist on a site without PINs', async () => {
     await verifyCode(TEST_EMAIL, PIN, newApp()).expect(401);
   });
 
@@ -220,7 +233,7 @@ describe('login with the fixed PIN', () => {
     // Now even the right PIN is refused...
     await verifyCode(TEST_EMAIL, PIN).expect(429);
     // ...for this address only...
-    await verifyCode(OTHER_TEST_EMAIL, PIN).expect(200);
+    await verifyCode(OTHER_TEST_EMAIL, OTHER_PIN).expect(200);
     // ...and a code by email still gets you in.
     const code = await emailedCode(TEST_EMAIL);
     await verifyCode(TEST_EMAIL, code).expect(200);

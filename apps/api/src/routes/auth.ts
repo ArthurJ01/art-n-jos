@@ -11,7 +11,7 @@ interface AuthOptions {
   /** The only addresses that can log in. */
   allowedEmails: readonly string[];
   codes: LoginCodes;
-  /** The fixed PIN, if the site has one. */
+  /** The fixed PINs, if anyone has one. */
   pin?: PinLogin;
   sendLoginCode: SendLoginCode;
   secureCookies: boolean;
@@ -20,7 +20,7 @@ interface AuthOptions {
 /**
  * Login: POST /verify-code swaps an email address and a six-digit code for a
  * session cookie. The code is either one that POST /request-code has emailed
- * to the address, or the site's fixed PIN.
+ * to the address, or that address's fixed PIN.
  */
 export function authRouter({
   allowedEmails,

@@ -18,20 +18,22 @@ const noInternet: FetchPage = () => Promise.reject(new Error('fetchPage was call
 interface TestAppOptions {
   fetchPage?: FetchPage;
   allowedEmails?: string[];
-  /** The fixed PIN. Left out, the app only has emailed codes. */
-  pin?: string;
+  /** Each address's fixed PIN. Left out, the app only has emailed codes. */
+  pins?: Record<string, string>;
 }
 
 export function createTestApp({
   fetchPage = noInternet,
   allowedEmails = [TEST_EMAIL, OTHER_TEST_EMAIL],
-  pin,
+  pins = {},
 }: TestAppOptions = {}) {
   const env = loadEnv({
     NODE_ENV: 'test',
     DATABASE_URL: TEST_DATABASE_URL,
     ALLOWED_EMAILS: allowedEmails.join(','),
-    LOGIN_PIN: pin,
+    LOGIN_PINS: Object.entries(pins)
+      .map(([email, pin]) => `${email}:${pin}`)
+      .join(','),
     SESSION_SECRET: 'x'.repeat(32),
     APP_ENV: 'test',
   });

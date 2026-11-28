@@ -4,7 +4,7 @@ import { LOGIN_CODE_LENGTH } from '@art-web/shared';
 import { useMe, useRequestCode, useVerifyCode } from '../lib/api';
 import { paths } from '../lib/paths';
 
-/** Which six digits you are about to type: a code from an email, or the fixed PIN. */
+/** Which six digits you are about to type: a code from an email, or your fixed PIN. */
 type CodeKind = 'emailed' | 'pin';
 
 /**
@@ -58,7 +58,7 @@ export function LoginPage() {
         <h1>Logga in</h1>
         <p className="muted">
           {me?.pinLogin
-            ? 'Skriv din e-postadress. Logga sedan in med en kod som vi skickar dit, eller med PIN-koden.'
+            ? 'Skriv din e-postadress. Logga sedan in med en kod som vi skickar dit, eller med din PIN-kod.'
             : 'Skriv din e-postadress, så skickar vi en kod att logga in med.'}
         </p>
         <label>
@@ -103,7 +103,7 @@ export function LoginPage() {
 
   return (
     <form className="form form-narrow" onSubmit={onVerifyCode}>
-      <h1>{kind === 'pin' ? 'Skriv in PIN-koden' : 'Skriv in koden'}</h1>
+      <h1>{kind === 'pin' ? 'Skriv in din PIN-kod' : 'Skriv in koden'}</h1>
       {kind === 'pin' ? (
         <>
           <p className="muted">
