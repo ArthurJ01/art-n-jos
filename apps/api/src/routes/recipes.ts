@@ -13,7 +13,6 @@ import type { Db } from '../db/client.js';
 import { recipes, type RecipeRow } from '../db/schema.js';
 import { extractRecipe } from '../import/extract.js';
 import { PageFetchError, type FetchPage } from '../import/fetch-page.js';
-import { requireAuth } from '../middleware/auth.js';
 import { HttpError } from '../middleware/errors.js';
 
 const idParam = z.object({ id: z.coerce.number().int().positive() });
@@ -83,7 +82,7 @@ export function recipesRouter(db: Db, { fetchPage }: { fetchPage: FetchPage }) {
     res.json(toDto(row));
   });
 
-  router.post('/', requireAuth, async (req, res) => {
+  router.post('/', async (req, res) => {
     const data = recipeInputSchema.parse(req.body);
     const [row] = await db.insert(recipes).values(toColumns(data)).returning();
     res.status(201).json(toDto(row!));
@@ -92,7 +91,7 @@ export function recipesRouter(db: Db, { fetchPage }: { fetchPage: FetchPage }) {
   // POST /api/recipes/import { url } reads a recipe from another site and
   // returns it as a draft. Nothing is saved: the form shows the draft, and
   // saving it is an ordinary POST /api/recipes.
-  router.post('/import', requireAuth, importLimiter, async (req, res) => {
+  router.post('/import', importLimiter, async (req, res) => {
     const { url } = recipeImportSchema.parse(req.body);
     const page = await fetchPage(url).catch((err: unknown) => {
       if (!(err instanceof PageFetchError)) throw err;
@@ -108,7 +107,7 @@ export function recipesRouter(db: Db, { fetchPage }: { fetchPage: FetchPage }) {
     res.json(result);
   });
 
-  router.put('/:id', requireAuth, async (req, res) => {
+  router.put('/:id', async (req, res) => {
     const { id } = idParam.parse(req.params);
     const data = recipeInputSchema.parse(req.body);
     const [row] = await db
@@ -120,7 +119,7 @@ export function recipesRouter(db: Db, { fetchPage }: { fetchPage: FetchPage }) {
     res.json(toDto(row));
   });
 
-  router.delete('/:id', requireAuth, async (req, res) => {
+  router.delete('/:id', async (req, res) => {
     const { id } = idParam.parse(req.params);
     const deleted = await db
       .delete(recipes)

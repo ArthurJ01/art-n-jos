@@ -198,9 +198,30 @@ export interface MealPlanEntry {
   isLeftover: boolean;
 }
 
-export const loginSchema = z.object({
-  password: z.string().min(1).max(200),
+// ---- Login ----
+// You log in with your email address and a six-digit code: either one that is
+// sent to the address, or that person's fixed PIN.
+
+/** Tidied first, so " Anna@Example.com " and "anna@example.com" are the same address. */
+const emailAddress = z.string().trim().toLowerCase().pipe(z.email().max(254));
+
+export const LOGIN_CODE_LENGTH = 6;
+
+export const requestCodeSchema = z.object({ email: emailAddress });
+
+export const verifyCodeSchema = z.object({
+  email: emailAddress,
+  code: z
+    .string()
+    .trim()
+    .regex(new RegExp(`^\\d{${LOGIN_CODE_LENGTH}}$`)),
 });
+
+export interface AuthStatus {
+  authenticated: boolean;
+  /** Whether the site has fixed PINs to log in with, besides the emailed codes. */
+  pinLogin: boolean;
+}
 
 export interface HealthResponse {
   status: 'ok' | 'degraded';

@@ -257,6 +257,14 @@ textarea.input {
   resize: vertical;
 }
 
+/* The login code: big, spaced-out digits that are easy to compare with the email. */
+.code-input {
+  font-size: 1.5rem;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.4em;
+  text-align: center;
+}
+
 /* ---- List page ---- */
 .toolbar {
   display: flex;

@@ -29,6 +29,20 @@
       "when": 1795348539364,
       "tag": "0003_recipe_tips",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1795866313737,
+      "tag": "0004_login_codes",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1795868415276,
+      "tag": "0005_pin_attempts",
+      "breakpoints": true
     }
   ]
 }

@@ -33,6 +33,7 @@ A small full-stack web app for collecting recipes. It also works as a practice p
 │   │   │   ├── env.ts       validated environment variables
 │   │   │   ├── db/          schema, client, migrate & seed scripts
 │   │   │   ├── routes/      /api/recipes, /api/meal-plan, /api/auth
+│   │   │   ├── auth/        login: emailed codes and the fixed PIN
 │   │   │   ├── import/      reads a recipe from a link to another site
 │   │   │   └── middleware/  auth + error handling
 │   │   ├── drizzle/         generated SQL migrations (commit these!)
@@ -56,7 +57,7 @@ You need **Node 22+** and **PostgreSQL 16+** installed locally (the installer fr
 
 ```bash
 npm install                 # install everything (all workspaces)
-cp .env.example .env        # local config. Edit APP_PASSWORD if you like
+cp .env.example .env        # local config. Put your email in ALLOWED_EMAILS
 psql -U postgres -f scripts/setup-local-db.sql   # once: creates the artweb login and databases
 npm run db:migrate          # create the tables
 npm run db:seed             # (optional) add a few example recipes
@@ -65,7 +66,7 @@ npm run dev                 # API on :3000 + web on :5173
 
 On Windows the PostgreSQL installer doesn't add `psql` to your PATH. Use the full path instead, e.g. `& "C:\Program Files\PostgreSQL\17\bin\psql.exe" -U postgres -f scripts/setup-local-db.sql` in PowerShell.
 
-Open http://localhost:5173 and log in with the `APP_PASSWORD` from your `.env`.
+Open http://localhost:5173 and log in with an address from `ALLOWED_EMAILS` in your `.env`. The whole site is behind the login. Then either choose **Använd PIN-kod** and type your PIN from `LOGIN_PINS` in your `.env`, or choose **Skicka kod**. Locally no email is sent: the six-digit code is printed in the terminal running `npm run dev` (look for `SMTP_HOST is not set`).
 
 ### Useful scripts (run from the repo root)
 
@@ -115,7 +116,6 @@ See **[docs/SETUP.md](docs/SETUP.md)** for a one-time setup of Neon, Vercel, Git
 ## Ideas for what to build next
 
 - Image uploads for recipes (e.g. Cloudflare R2 or Supabase Storage)
-- Real user accounts (one login per person) instead of a shared password
 - Pagination on the recipe list
 - "Import from URL" that reads a recipe website's JSON-LD
 - End-to-end tests with Playwright in CI

@@ -46,15 +46,30 @@ Already done: the code is at https://github.com/ArthurJ01/art-n-jos and CI runs 
    | Key              | Production                       | Preview (= dev)             |
    | ---------------- | -------------------------------- | --------------------------- |
    | `DATABASE_URL`   | prod-**pooled** string           | dev-**pooled** string       |
-   | `APP_PASSWORD`   | the password you'll actually use | a password for the dev site |
+   | `ALLOWED_EMAILS` | who can log in, comma-separated  | the same                    |
+   | `LOGIN_PINS`     | `address:pin,address:pin`        | the same, or other PINs     |
    | `SESSION_SECRET` | a random string (see below)      | a _different_ random string |
    | `APP_ENV`        | `prod`                           | `dev`                       |
+   | `SMTP_HOST`      | `smtp.gmail.com`                 | the same                    |
+   | `SMTP_USER`      | the Gmail address that sends     | the same                    |
+   | `SMTP_PASS`      | a Gmail app password (see below) | the same                    |
 
    Generate random strings with:
 
    ```bash
    node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
    ```
+
+   **Logging in.** You type your email address and then six digits: either your PIN, or a code that is sent to the address. The PINs are in `LOGIN_PINS`, one per address, written as `you@example.com:123456,partner@example.com:654321`. They are optional: someone without a PIN there logs in with emailed codes only. A PIN is the weaker of the two, because it never changes. What protects it is that an address gets five guesses an hour, after which only an emailed code works for that address. So don't pick `123456` or a birthday. The API refuses to start if an entry is malformed or is for an address that isn't in `ALLOWED_EMAILS`; the log says which entry, by number.
+
+   **Login emails.** Only the addresses in `ALLOWED_EMAILS` get a code. The codes are sent through a Gmail account, which is free and needs no domain:
+   1. On that Google account, turn on **2-Step Verification** (https://myaccount.google.com/security). App passwords don't exist without it.
+   2. Create an app password at https://myaccount.google.com/apppasswords (name it `art-n-jos`). Google shows 16 letters once. That is `SMTP_PASS`; paste it without the spaces.
+   3. `SMTP_USER` is the account's address. The codes arrive from that address.
+
+   An app password can only send and read mail. It can't change the account, and you can delete it on the same page at any time. The API refuses to start on Vercel if `SMTP_HOST`, `SMTP_USER` or `SMTP_PASS` is missing, since nobody could log in.
+
+   Any other mail provider works too: set `SMTP_HOST`, `SMTP_PORT` (default 465), `SMTP_USER`, `SMTP_PASS`, and `MAIL_FROM` if the sender address is not the same as `SMTP_USER`. Once the domain is bought, a provider like Resend can send from it.
 
 5. **Settings → Functions → Function Region**: choose **Frankfurt, Germany (fra1)**, next to the database. `vercel.json` asks for it too, but setting it here makes sure.
 6. **Settings → General**: note the **Project ID**. Your **Team ID** (it starts with `team_`) is in your account/team **Settings → General**.
@@ -126,13 +141,14 @@ Every change goes into `dev` first (deploys the dev site), and `main` only takes
 
 ## Troubleshooting
 
-| Symptom                                | Likely cause / fix                                                                                                                                                          |
-| -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| "Run database migrations" fails        | Wrong `DATABASE_URL` secret in that GitHub environment (use the **direct** string).                                                                                         |
-| "Pull Vercel project settings" fails   | `VERCEL_TOKEN`, `VERCEL_ORG_ID` or `VERCEL_PROJECT_ID` is wrong or missing.                                                                                                 |
-| Site loads but recipes don't (API 500) | **Vercel → Project → Logs**. Usually a missing env var; the app prints exactly which one. Env vars only apply to _new_ deploys, so re-run the workflow after changing them. |
-| "Point the dev address…" fails         | The `APP_URL` name is taken by someone else on `vercel.app`. Pick another name, e.g. `art-n-jos-dev-arthur.vercel.app`.                                                     |
-| Can't log in on the deployed site      | Check `APP_PASSWORD` for that environment in Vercel.                                                                                                                        |
+| Symptom                                | Likely cause / fix                                                                                                                                                                                                                                                                                            |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| "Run database migrations" fails        | Wrong `DATABASE_URL` secret in that GitHub environment (use the **direct** string).                                                                                                                                                                                                                           |
+| "Pull Vercel project settings" fails   | `VERCEL_TOKEN`, `VERCEL_ORG_ID` or `VERCEL_PROJECT_ID` is wrong or missing.                                                                                                                                                                                                                                   |
+| Site loads but recipes don't (API 500) | **Vercel → Project → Logs**. Usually a missing env var; the app prints exactly which one. Env vars only apply to _new_ deploys, so re-run the workflow after changing them.                                                                                                                                   |
+| "Point the dev address…" fails         | The `APP_URL` name is taken by someone else on `vercel.app`. Pick another name, e.g. `art-n-jos-dev-arthur.vercel.app`.                                                                                                                                                                                       |
+| "För många felaktiga koder"            | The PIN is locked for that address for up to an hour after five wrong codes. Log in with a code by email instead.                                                                                                                                                                                             |
+| No login code arrives                  | Check spam first. Then: is the address in `ALLOWED_EMAILS` for that environment? (The site answers the same either way, on purpose.) After five codes in an hour an address gets no more for a while. If sending failed, **Vercel → Logs** has `Login: could not send the code`, usually a wrong `SMTP_PASS`. |
 
 **Rolling back:** Vercel → Project → **Deployments** → pick an earlier production deploy → **⋯ → Instant Rollback**.
 

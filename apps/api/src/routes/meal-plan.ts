@@ -9,7 +9,6 @@ import {
 } from '@art-web/shared';
 import type { Db } from '../db/client.js';
 import { mealPlanEntries, recipes } from '../db/schema.js';
-import { requireAuth } from '../middleware/auth.js';
 import { HttpError } from '../middleware/errors.js';
 
 const idParam = z.object({ id: z.coerce.number().int().positive() });
@@ -74,7 +73,7 @@ export function mealPlanRouter(db: Db) {
     };
   }
 
-  router.post('/', requireAuth, async (req, res) => {
+  router.post('/', async (req, res) => {
     const [row] = await db
       .insert(mealPlanEntries)
       .values(await toColumns(req.body))
@@ -84,7 +83,7 @@ export function mealPlanRouter(db: Db) {
 
   // PUT /api/meal-plan/5 replaces an entry: the way to change what is planned
   // (another recipe, another name) while it keeps its place in the slot.
-  router.put('/:id', requireAuth, async (req, res) => {
+  router.put('/:id', async (req, res) => {
     const { id } = idParam.parse(req.params);
     const updated = await db
       .update(mealPlanEntries)
@@ -96,7 +95,7 @@ export function mealPlanRouter(db: Db) {
   });
 
   // PATCH /api/meal-plan/5 moves an entry to another day and/or meal.
-  router.patch('/:id', requireAuth, async (req, res) => {
+  router.patch('/:id', async (req, res) => {
     const { id } = idParam.parse(req.params);
     const data = mealPlanMoveSchema.parse(req.body);
     const updated = await db
@@ -108,7 +107,7 @@ export function mealPlanRouter(db: Db) {
     res.json(await getEntry(id));
   });
 
-  router.delete('/:id', requireAuth, async (req, res) => {
+  router.delete('/:id', async (req, res) => {
     const { id } = idParam.parse(req.params);
     const deleted = await db
       .delete(mealPlanEntries)

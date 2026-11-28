@@ -9,7 +9,7 @@ import {
   PageFetchError,
   type FetchPage,
 } from '../src/import/fetch-page.js';
-import { createTestApp, TEST_PASSWORD } from './helpers.js';
+import { createTestApp } from './helpers.js';
 
 /** A page with its recipe as JSON-LD, the way recipe sites publish it. */
 const page = (jsonLd: unknown, head = '') => `<!doctype html>
@@ -334,13 +334,7 @@ describe('POST /api/recipes/import', () => {
     if (url.endsWith('/empty')) return { html: '<html></html>', url };
     return { html: page(pancakes), url: `${url}?efter-omdirigering` };
   };
-  const { app, pool } = createTestApp({ fetchPage: fakeFetchPage });
-
-  async function loggedInAgent() {
-    const agent = request.agent(app);
-    await agent.post('/api/auth/login').send({ password: TEST_PASSWORD }).expect(200);
-    return agent;
-  }
+  const { app, pool, loggedInAgent } = createTestApp({ fetchPage: fakeFetchPage });
 
   afterAll(async () => {
     await pool.end();
@@ -371,7 +365,7 @@ describe('POST /api/recipes/import', () => {
     });
     expect(requested).toEqual(['https://example.com/pannkakor']);
 
-    const list = await request(app).get('/api/recipes?q=Pannkakor').expect(200);
+    const list = await agent.get('/api/recipes?q=Pannkakor').expect(200);
     expect(list.body).toEqual([]);
   });
 

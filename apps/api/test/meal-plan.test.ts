@@ -1,15 +1,9 @@
 import request from 'supertest';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { mealPlanEntries, recipes } from '../src/db/schema.js';
-import { createTestApp, TEST_PASSWORD } from './helpers.js';
+import { createTestApp } from './helpers.js';
 
-const { app, db, pool } = createTestApp();
-
-async function loggedInAgent() {
-  const agent = request.agent(app);
-  await agent.post('/api/auth/login').send({ password: TEST_PASSWORD }).expect(200);
-  return agent;
-}
+const { app, db, pool, loggedInAgent } = createTestApp();
 
 /** Inserts a recipe straight into the database and returns its id. */
 async function createRecipe(title = 'Pasta') {
@@ -29,15 +23,16 @@ afterAll(async () => {
 });
 
 describe('meal plan', () => {
-  it('requires login to change the plan', async () => {
+  it('requires login, to read the plan as well as to change it', async () => {
     const body = { date: '2026-11-16', meal: 'dinner', kind: 'eat_out' };
+    await request(app).get(week).expect(401);
     await request(app).post('/api/meal-plan').send(body).expect(401);
     await request(app).patch('/api/meal-plan/1').send(body).expect(401);
     await request(app).put('/api/meal-plan/1').send(body).expect(401);
     await request(app).delete('/api/meal-plan/1').expect(401);
   });
 
-  it('plans a recipe and shows it to everyone, with the recipe title', async () => {
+  it('plans a recipe and shows it with the recipe title', async () => {
     const agent = await loggedInAgent();
     const recipeId = await createRecipe('Lasagne');
 
@@ -55,8 +50,7 @@ describe('meal plan', () => {
       isLeftover: false,
     });
 
-    // No login needed to read.
-    const list = await request(app).get(week).expect(200);
+    const list = await agent.get(week).expect(200);
     expect(list.body).toEqual([created.body]);
   });
 
@@ -74,7 +68,7 @@ describe('meal plan', () => {
       .send({ ...slot, kind: 'eat_out' })
       .expect(201);
 
-    const list = await request(app).get(week).expect(200);
+    const list = await agent.get(week).expect(200);
     expect(list.body).toMatchObject([
       { kind: 'recipe', isLeftover: true },
       { kind: 'eat_out', recipeId: null, recipeTitle: null },
@@ -100,7 +94,7 @@ describe('meal plan', () => {
       .send({ date: '2026-11-20', meal: 'lunch', kind: 'custom', title: 'Tacos', isLeftover: true })
       .expect(201);
 
-    const list = await request(app).get(week).expect(200);
+    const list = await agent.get(week).expect(200);
     expect(list.body).toMatchObject([
       { kind: 'custom', title: 'Tacos hos mamma' },
       { kind: 'custom', title: 'Tacos', isLeftover: true },
@@ -112,7 +106,7 @@ describe('meal plan', () => {
     for (const date of ['2026-11-15', '2026-11-16', '2026-11-22', '2026-11-23']) {
       await agent.post('/api/meal-plan').send({ date, meal: 'dinner', kind: 'eat_out' });
     }
-    const list = await request(app).get(week).expect(200);
+    const list = await agent.get(week).expect(200);
     expect(list.body.map((e: { date: string }) => e.date)).toEqual(['2026-11-16', '2026-11-22']);
   });
 
@@ -132,7 +126,7 @@ describe('meal plan', () => {
 
     await agent.delete(`/api/meal-plan/${id}`).expect(204);
     await agent.delete(`/api/meal-plan/${id}`).expect(404);
-    const list = await request(app).get(week).expect(200);
+    const list = await agent.get(week).expect(200);
     expect(list.body).toEqual([]);
   });
 
@@ -182,7 +176,7 @@ describe('meal plan', () => {
       .send({ ...slot, kind: 'eat_out' })
       .expect(404);
 
-    const list = await request(app).get(week).expect(200);
+    const list = await agent.get(week).expect(200);
     expect(list.body).toEqual([swapped.body]);
   });
 
@@ -195,7 +189,7 @@ describe('meal plan', () => {
       .expect(201);
 
     await agent.delete(`/api/recipes/${recipeId}`).expect(204);
-    const list = await request(app).get(week).expect(200);
+    const list = await agent.get(week).expect(200);
     expect(list.body).toEqual([]);
   });
 
@@ -242,8 +236,8 @@ describe('meal plan', () => {
       .send({ date: '2026-02-30', meal: 'dinner', kind: 'eat_out' })
       .expect(400);
 
-    await request(app).get('/api/meal-plan').expect(400);
-    await request(app).get('/api/meal-plan?from=2026-11-22&to=2026-11-16').expect(400);
-    await request(app).get('/api/meal-plan?from=2026-01-01&to=2026-12-31').expect(400);
+    await agent.get('/api/meal-plan').expect(400);
+    await agent.get('/api/meal-plan?from=2026-11-22&to=2026-11-16').expect(400);
+    await agent.get('/api/meal-plan?from=2026-01-01&to=2026-12-31').expect(400);
   });
 });
